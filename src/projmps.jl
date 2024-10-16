@@ -9,11 +9,28 @@ struct ProjMPS
         _iscompatible(projector, data) || error(
             "Incompatible projector and data. Even small numerical noise can cause this error.",
         )
+        projector = _trim_projector(data, projector)
         return new(MPS([x for x in data]), projector)
     end
 end
 
 ITensors.siteinds(obj::ProjMPS) = siteinds(MPO([x for x in obj.data]))
+
+function _allsites(Ψ::AbstractMPS)
+    return collect(Iterators.flatten(siteinds(MPO(collect(Ψ)))))
+end
+
+function _trim_projector(obj::AbstractMPS, projector)
+    sites = Set(_allsites(obj))
+    newprj = deepcopy(projector)
+    for (k, v) in newprj.data
+        if !(k in sites)
+            @show "removing $k"
+            delete!(newprj.data, k)
+        end
+    end
+    return newprj
+end
 
 function ProjMPS(Ψ::AbstractMPS)
     IndsT = typeof(first(siteinds(MPS(collect(Ψ)))))

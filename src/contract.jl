@@ -37,6 +37,9 @@ function projcontract(M1::ProjMPS, M2::ProjMPS, proj::Projector; kwargs...)::Uni
     # Project M1 and M2 to `proj` before contracting
     M1 = project(M1, proj)
     M2 = project(M2, proj)
+    if M1 === nothing || M2 === nothing
+        return nothing
+    end
     return ITensors.contract(M1, M2; kwargs...)
 end
 
@@ -46,11 +49,13 @@ Project two ProjMPS objects to `proj` before contracting them.
 The results are summed.
 """
 function projcontract(M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, proj::Projector; kwargs...)
-    results = Vector{ProjMPS}[]
-    for M1_ in M2, M2_ in M2
-        r = projcontract(M1_, M2_, proj; kwargs...)
-        if r !== nothing
-            push!(results, r)
+    results = ProjMPS[]
+    for M1_ in M1
+        for M2_ in M2
+            r = projcontract(M1_, M2_, proj; kwargs...)
+            if r !== nothing
+                push!(results, r)
+            end
         end
     end
 
@@ -62,19 +67,5 @@ function projcontract(M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, 
         return results[1]
     end
 
-    # Add all results.
-    # DO NOT USE DENSITYMATRIX ALGORITHM BECAUSE IT SUFFERS FROM NUMERICAL ERRORS
-    # In the future, we may implement a more stable algorithm based on density matrix + fitting
-    results_sum = deepcopy(results[1])
-    for r in results[2:end]
-        results_sum = _add(results_sum, r; kwargs...)
-    end
-
-    return results_sum
-end
-
-function _add(a::ProjMPS, b::ProjMPS; cutoff=0.0, maxdim=typemax(Int))::ProjMPS
-    ab_MPS = +(a.data, b.data; alg="directsum")
-    truncate!(ab_MPS; maxdim, cutoff)
-    return project(ProjMPS(ab_MPS), a.projector | b.projector)
+    return _add(results; kwargs...)
 end
