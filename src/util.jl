@@ -11,47 +11,8 @@ function Not(index::Int, length::Int)
     return vcat(1:(index - 1), (index + 1):length)
 end
 
-function _multii(sitedims::Vector{Int}, i::Int)::Vector{Int}
-    i <= prod(sitedims) || error("Index out of range $i, $sitedims")
-    return if i == 0
-        fill(0, length(sitedims))
-    else
-        collect(Tuple(CartesianIndices(Tuple(sitedims))[i]))
-    end
-end
-
-function multii(sitedims::Vector{Vector{Int}}, indexset::MultiIndex)::Vector{Vector{Int}}
-    return [_multii(sitedims[l], i) for (l, i) in enumerate(indexset)]
-end
-
-function _lineari(dims, mi)::Integer
-    if prod(mi) == 0
-        return 0
-    end
-    ci = CartesianIndex(Tuple(mi))
-    li = LinearIndices(Tuple(dims))
-    return li[ci]
-end
-
-function lineari(sitedims::Vector{Vector{Int}}, indexset::Vector{MultiIndex})::Vector{Int}
-    return [_lineari(sitedims[l], indexset[l]) for l in 1:length(indexset)]
-end
-
 function typesafe_iterators_product(::Val{N}, dims) where {N}
     return Iterators.product(ntuple(i -> 1:dims[i], N)...)
-end
-
-function findinitialpivots(f, localdims, nmaxpivots)::Vector{MultiIndex}
-    pivots = MultiIndex[]
-    for _ in 1:nmaxpivots
-        pivot_ = [rand(1:d) for d in localdims]
-        pivot_ = TCI.optfirstpivot(f, localdims, pivot_)
-        if abs(f(pivot_)) == 0.0
-            continue
-        end
-        push!(pivots, pivot_)
-    end
-    return pivots
 end
 
 _getindex(x, indices) = ntuple(i -> x[indices[i]], length(indices))

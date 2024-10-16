@@ -1,8 +1,5 @@
 using Test
-import TensorCrossInterpolation as TCI
-import TCIAlgorithms as TCIA
-
-import TCIAlgorithms: Projector
+import ProjMPSs: Projector, hasoverlap
 
 @testset "Projector" begin
     @testset "constructor" begin
@@ -34,7 +31,7 @@ import TCIAlgorithms: Projector
             p1 = Projector(Dict(inds[1] => 1, inds[2] => 1))
             p2 = Projector(Dict(inds[1] => 2))
             @test p1 & p2 === nothing
-            @test TCIA.hasoverlap(p1, p2) == false
+            @test hasoverlap(p1, p2) == false
         end
 
         let
