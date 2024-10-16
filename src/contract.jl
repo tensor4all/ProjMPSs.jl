@@ -1,17 +1,17 @@
-function ITensors.contract(M1::ProjMPS, M2::ProjMPS; kwargs...)::Union{ProjMPS, Nothing}
+function ITensors.contract(M1::ProjMPS, M2::ProjMPS; kwargs...)::Union{ProjMPS,Nothing}
     if !hasoverlap(M1.projector, M2.projector)
         return nothing
     end
-    proj = _projector_after_contract(M1, M2)
+    proj, external_sites = _projector_after_contract(M1, M2)
+
     Ψ = FMPOC.contract_mpo_mpo(MPO(collect(M1.data)), MPO(collect(M2.data)); kwargs...)
     return project(ProjMPS(Ψ), proj)
 end
 
-
 # Figure out `projector` after contracting ProjMPS objects
 function _projector_after_contract(M1::ProjMPS, M2::ProjMPS)
-    sites1 = Set(Iterators.flatten(siteinds(M1)))
-    sites2 = Set(Iterators.flatten(siteinds(M2)))
+    sites1 = _allsites(M1)
+    sites2 = _allsites(M2)
 
     external_sites = setdiff(union(sites1, sites2), intersect(sites1, sites2))
 
@@ -26,29 +26,47 @@ function _projector_after_contract(M1::ProjMPS, M2::ProjMPS)
         end
     end
 
-    return Projector(proj)
+    return Projector(proj), external_sites
 end
 
+function _is_externalsites_compatible_with_projector(external_sites, projector)
+    for s in keys(projector)
+        if !(s ∈ external_sites)
+            return false
+        end
+    end
+    return true
+end
 
 """
 Project two ProjMPS objects to `proj` before contracting them.
 """
-function projcontract(M1::ProjMPS, M2::ProjMPS, proj::Projector; kwargs...)::Union{Nothing,ProjMPS}
+function projcontract(
+    M1::ProjMPS, M2::ProjMPS, proj::Projector; kwargs...
+)::Union{Nothing,ProjMPS}
     # Project M1 and M2 to `proj` before contracting
     M1 = project(M1, proj)
     M2 = project(M2, proj)
     if M1 === nothing || M2 === nothing
         return nothing
     end
+
+    _, external_sites = _projector_after_contract(M1, M2)
+
+    if !_is_externalsites_compatible_with_projector(external_sites, proj)
+        error("The projector contains projection onto a site what is not a external sites.")
+    end
+
     return ITensors.contract(M1, M2; kwargs...)
 end
-
 
 """
 Project two ProjMPS objects to `proj` before contracting them.
 The results are summed.
 """
-function projcontract(M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, proj::Projector; kwargs...)
+function projcontract(
+    M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, proj::Projector; kwargs...
+)
     results = ProjMPS[]
     for M1_ in M1
         for M2_ in M2
@@ -68,4 +86,24 @@ function projcontract(M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, 
     end
 
     return _add(results; kwargs...)
+end
+
+_add_directsum(a, b) = +(a, b; alg="directsum")
+
+function _add(Ψs::AbstractVector{MPO}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2)::MPO
+    Ψsum::MPO = deepcopy(Ψs[1])
+    for Ψ::MPO in Ψs[2:end]
+        Ψsum = +(Ψsum, Ψ; alg="directsum")
+        truncate!(Ψsum; cutoff, maxdim)
+    end
+    return FMPOC.fit(Ψs, Ψsum; maxdim, cutoff, nsweeps)
+end
+
+function _add(
+    Ψs::AbstractVector{ProjMPS}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2
+)::ProjMPS
+    mpos::Vector{MPO} = [MPO(collect(x.data)) for x in Ψs]
+    sum_mps = _add(mpos; cutoff, maxdim, nsweeps)
+    newprj = reduce(|, (x.projector for x in Ψs))
+    return project(ProjMPS(sum_mps), newprj)
 end

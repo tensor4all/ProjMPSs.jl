@@ -1,10 +1,10 @@
 using ITensors
 
 function _random_mpo(
-    rng::AbstractRNG, sites::AbstractVector{<:AbstractVector{Index{T}}}; m::Int=1
+    rng::AbstractRNG, sites::AbstractVector{<:AbstractVector{Index{T}}}; linkdims::Int=1
 ) where {T}
     sites_ = collect(Iterators.flatten(sites))
-    Ψ = random_mps(rng, sites_, m)
+    Ψ = random_mps(rng, sites_; linkdims)
     tensors = ITensor[]
     pos = 1
     for i in 1:length(sites)
@@ -14,6 +14,8 @@ function _random_mpo(
     return MPO(tensors)
 end
 
-function _random_mpo(sites::AbstractVector{<:AbstractVector{Index{T}}}; m::Int=1) where {T}
-    return _random_mpo(Random.default_rng(), sites; m=m)
+function _random_mpo(
+    sites::AbstractVector{<:AbstractVector{Index{T}}}; linkdims::Int=1
+) where {T}
+    return _random_mpo(Random.default_rng(), sites; linkdims)
 end

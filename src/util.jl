@@ -57,20 +57,3 @@ function shallowcopy(original)
     new_fields = [Base.copy(getfield(original, name)) for name in fieldnames]
     return (typeof(original))(new_fields...)
 end
-
-
-function _add(Ψs::AbstractVector{MPO}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2)::MPO
-    Ψsum::MPO = deepcopy(Ψs[1])
-    for Ψ::MPO in Ψs[2:end]
-        Ψsum = +(Ψsum, Ψ; alg="directsum")
-        truncate!(Ψsum; cutoff, maxdim)
-    end
-    return FMPOC.fit(Ψs, Ψsum; maxdim, cutoff, nsweeps)
-end
-
-function _add(Ψs::AbstractVector{ProjMPS}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2)::ProjMPS
-    mpos::Vector{MPO} = [MPO(collect(x.data)) for x in Ψs]
-    sum_mps = _add(mpos; cutoff, maxdim, nsweeps)
-    newprj = reduce(|, (x.projector for x in Ψs))
-    return project(ProjMPS(sum_mps), newprj)
-end

@@ -16,16 +16,14 @@ end
 
 ITensors.siteinds(obj::ProjMPS) = siteinds(MPO([x for x in obj.data]))
 
-function _allsites(Ψ::AbstractMPS)
-    return collect(Iterators.flatten(siteinds(MPO(collect(Ψ)))))
-end
+_allsites(Ψ::AbstractMPS) = collect(Iterators.flatten(siteinds(MPO(collect(Ψ)))))
+_allsites(Ψ::ProjMPS) = _allsites(Ψ.data)
 
 function _trim_projector(obj::AbstractMPS, projector)
     sites = Set(_allsites(obj))
     newprj = deepcopy(projector)
     for (k, v) in newprj.data
         if !(k in sites)
-            @show "removing $k"
             delete!(newprj.data, k)
         end
     end
@@ -164,7 +162,6 @@ function ITensors.prime(Ψ::ProjMPS, args...; kwargs...)
 end
 
 Base.isapprox(x::ProjMPS, y::ProjMPS; kwargs...) = Base.isapprox(x.data, y.data, kwargs...)
-
 
 function isprojectedat(obj::ProjMPS, ind::IndsT)::Bool where {IndsT}
     return isprojectedat(obj.projector, ind)
