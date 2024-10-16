@@ -30,6 +30,8 @@ end
 Base.getindex(p::Projector, inds) = p.data[inds]
 Base.keys(p::Projector) = keys(p.data)
 
+#Base.empty!(p::Projector) = empty!(p.data)
+
 Base.:(==)(a::Projector, b::Projector)::Bool = (a.data == b.data)
 
 """

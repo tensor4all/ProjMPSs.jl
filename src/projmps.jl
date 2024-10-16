@@ -5,7 +5,7 @@ struct ProjMPS
     data::MPS
     projector::Projector
 
-    function ProjMPS(data::AbstractMPS, projector::Projector)
+    function ProjMPS(data::AbstractMPS, projector::Projector{IndsT}) where {IndsT}
         _iscompatible(projector, data) || error(
             "Incompatible projector and data. Even small numerical noise can cause this error.",
         )
@@ -16,7 +16,7 @@ end
 ITensors.siteinds(obj::ProjMPS) = siteinds(MPO([x for x in obj.data]))
 
 function ProjMPS(Ψ::AbstractMPS)
-    IndsT = eltype(siteinds(Ψ))
+    IndsT = typeof(first(siteinds(MPS(collect(Ψ)))))
     return ProjMPS(Ψ, Projector{IndsT}())
 end
 
@@ -57,7 +57,7 @@ function _iscompatible(projector::Projector, tensor::ITensor)
     return norm(project(tensor, projector) - tensor) == 0.0
 end
 
-function _iscompatible(projector::Projector, Ψ::MPS)
+function _iscompatible(projector::Projector, Ψ::AbstractMPS)
     return all((_iscompatible(projector, x) for x in Ψ))
 end
 
@@ -147,3 +147,8 @@ function ITensors.prime(Ψ::ProjMPS, args...; kwargs...)
 end
 
 Base.isapprox(x::ProjMPS, y::ProjMPS; kwargs...) = Base.isapprox(x.data, y.data, kwargs...)
+
+
+function isprojectedat(obj::ProjMPS, ind::IndsT)::Bool where {IndsT}
+    return isprojectedat(obj.projector, ind)
+end

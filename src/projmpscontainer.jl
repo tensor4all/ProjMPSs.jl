@@ -1,4 +1,5 @@
 
+# FIXME: do you need this struct? We can just use a vector of ProjMPS objects.
 struct ProjMPSContainer
     data::Vector{ProjMPS}
     sites::Vector{Vector{Index}}

@@ -2,7 +2,7 @@ using Test
 
 using ITensors
 
-import Quantics
+using Quantics: Quantics
 import ProjMPSs: Projector, project, ProjMPS
 
 @testset "projmps.jl" begin
