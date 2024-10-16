@@ -6,14 +6,14 @@ struct ProjMPS
     projector::Projector
 
     function ProjMPS(data::AbstractMPS, projector::Projector)
-        _check_projector_compatibility(projector, data) || error(
+        _iscompatible(projector, data) || error(
             "Incompatible projector and data. Even small numerical noise can cause this error.",
         )
         return new(MPS([x for x in data]), projector)
     end
 end
 
-ITensors.siteinds(obj::ProjMPS) = siteinds(obj.data)
+ITensors.siteinds(obj::ProjMPS) = siteinds(MPO([x for x in obj.data]))
 
 function ProjMPS(Ψ::AbstractMPS)
     IndsT = eltype(siteinds(Ψ))
@@ -42,8 +42,14 @@ function project(
     end
 
     return ProjMPS(
-        MPS([project(projΨ.data[n], newprj) for n in 1:length(projΨ.data)]), newproj
+        MPS([project(projΨ.data[n], newprj) for n in 1:length(projΨ.data)]), newprj
     )
+end
+
+function project(
+    projΨ::ProjMPS, projector::Dict{IndsT,Int}
+)::Union{Nothing,ProjMPS} where {IndsT}
+    return project(projΨ, Projector(projector))
 end
 
 function _iscompatible(projector::Projector, tensor::ITensor)
@@ -51,45 +57,8 @@ function _iscompatible(projector::Projector, tensor::ITensor)
     return norm(project(tensor, projector) - tensor) == 0.0
 end
 
-function _check_projector_compatibility(
-    projector::Projector, Ψ::MPS, sites::AbstractVector{<:AbstractVector}
-)
-    links = linkinds(Ψ)
-    sitedims = [collect(dim.(s)) for s in sites]
-
-    sitetensors = []
-    push!(
-        sitetensors,
-        reshape(
-            Array(Ψ[1], [sites[1]..., links[1]]), [1, prod(sitedims[1]), dim(links[1])]...
-        ),
-    )
-    for n in 2:(length(Ψ) - 1)
-        push!(
-            sitetensors,
-            reshape(
-                Array(Ψ[n], [links[n - 1], sites[n]..., links[n]]),
-                dim(links[n - 1]),
-                prod(sitedims[n]),
-                dim(links[n]),
-            ),
-        )
-    end
-    push!(
-        sitetensors,
-        reshape(
-            Array(Ψ[end], [links[end], sites[end]...]),
-            dim(links[end]),
-            prod(sitedims[end]),
-            1,
-        ),
-    )
-
-    return reduce(
-        &,
-        _check_projector_compatibility(projector[n], sitedims[n], sitetensors[n]) for
-        n in 1:length(Ψ)
-    )
+function _iscompatible(projector::Projector, Ψ::MPS)
+    return all((_iscompatible(projector, x) for x in Ψ))
 end
 
 function find_nested_index(data::Vector{Vector{T}}, target::T) where {T}
@@ -109,7 +78,7 @@ function Quantics.makesitediagonal(projmps::ProjMPS, site::Index)
     projmps_diagonal = ProjMPS(mps_diagonal, sites_diagonal)
 
     prjsiteinds = Dict{Index{Int},Int}()
-    for (p, s) in zip(projmps.projector, projmps.sites)
+    for (p, s) in zip(projmps.projector, siteinds(projmps))
         for (p_, s_) in zip(p, s)
             iszero(p_) && continue
             prjsiteinds[s_] = p_
@@ -124,72 +93,44 @@ end
 
 function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)
     mps_diagonal = Quantics.makesitediagonal(MPS(projmps), tag)
-    sites_diagonal = siteinds(all, mps_diagonal)
-    projmps_diagonal = ProjMPS(mps_diagonal, sites_diagonal)
+    projmps_diagonal = ProjMPS(mps_diagonal)
 
-    target_positions = Quantics.findallsiteinds_by_tag(siteinds(MPS(projmps)); tag=tag)
-    prjsiteinds = Dict{Index{Int},Int}()
-    for (p, s) in zip(projmps.projector, projmps.sites)
-        for (p_, s_) in zip(p, s)
-            iszero(p_) && continue
-            prjsiteinds[s_] = p_
-            if s_ ∈ target_positions
-                prjsiteinds[s_'] = p_
-            end
+    target_sites = Quantics.findallsiteinds_by_tag(
+        unique(noprime.(Iterators.flatten(siteinds(projmps)))); tag=tag
+    )
+
+    newproj = deepcopy(projmps.projector)
+    for s in target_sites
+        if isprojectedat(projmps.projector, s)
+            newproj[s'] = newproj[s]
         end
     end
 
-    return project(projmps_diagonal, prjsiteinds)
-end
-
-function Quantics.makesitediagonal(projmpss::ProjMPSContainer, sites)
-    return ProjMPSContainer([
-        Quantics.makesitediagonal(projmps, sites) for projmps in projmpss.data
-    ])
+    return project(projmps_diagonal, newproj)
 end
 
 function Quantics.extractdiagonal(projmps::ProjMPS, tag::String)
     mps_diagonal = Quantics.extractdiagonal(MPS(projmps), tag)
-    sites_diagonal = siteinds(all, mps_diagonal)
-    projmps_diagonal = ProjMPS(mps_diagonal, sites_diagonal)
-    sites_diagonal_set = Set(Iterators.flatten(sites_diagonal))
+    projmps_diagonal = ProjMPS(mps_diagonal)
 
-    prjsiteinds = Dict{Index{Int},Int}()
-    for (p, s) in zip(projmps.projector, projmps.sites)
-        for (p_, s_) in zip(p, s)
-            !iszero(p_) || continue
-            s_ ∈ sites_diagonal_set || continue
-            prjsiteinds[s_] = p_
+    target_sites = Quantics.findallsiteinds_by_tag(
+        unique(noprime.(Iterators.flatten(siteinds(projmps)))); tag=tag
+    )
+
+    newproj = deepcopy(projmps.projector)
+
+    for s in target_sites
+        if isprojectedat(newproj, s)
+            delete!(newproj, s')
         end
     end
 
-    return project(projmps_diagonal, prjsiteinds)
-end
-
-function Quantics.extractdiagonal(projmpss::ProjMPSContainer, sites)
-    return ProjMPSContainer([
-        Quantics.extractdiagonal(projmps, sites) for projmps in projmpss.data
-    ])
+    return project(projmps_diagonal, newproj)
 end
 
 function Quantics.rearrange_siteinds(projmps::ProjMPS, sites)
     mps_rearranged = Quantics.rearrange_siteinds(MPS(projmps), sites)
-    projmps_rearranged = ProjMPS(mps_rearranged, sites)
-    prjsiteinds = Dict{Index{Int},Int}()
-    for (p, s) in zip(projmps.projector, projmps.sites)
-        for (p_, s_) in zip(p, s)
-            if p_ != 0
-                prjsiteinds[s_] = p_
-            end
-        end
-    end
-    return project(projmps_rearranged, prjsiteinds)
-end
-
-function Quantics.rearrange_siteinds(projmpss::ProjMPSContainer, sites)
-    return ProjMPSContainer([
-        Quantics.rearrange_siteinds(projmps, sites) for projmps in projmpss.data
-    ])
+    return project(ProjMPS(mps_rearranged), projmps.projector)
 end
 
 # Miscellaneous Functions
@@ -199,33 +140,10 @@ end
 
 function ITensors.prime(Ψ::ProjMPS, args...; kwargs...)
     return ProjMPS(
-        prime(MPS(Ψ), args...; kwargs...), prime.(Ψ.sites, args...; kwargs...), Ψ.projector
+        prime(MPS(Ψ), args...; kwargs...),
+        prime.(siteinds(Ψ), args...; kwargs...),
+        Ψ.projector,
     )
 end
 
-function ITensors.prime(Ψ::ProjMPSContainer, args...; kwargs...)
-    return ProjMPSContainer([prime(projmps, args...; kwargs...) for projmps in Ψ.data])
-end
-
 Base.isapprox(x::ProjMPS, y::ProjMPS; kwargs...) = Base.isapprox(x.data, y.data, kwargs...)
-
-# Random MPO Functions (commented out)
-#==
-function _random_mpo(
-    rng::AbstractRNG, sites::AbstractVector{<:AbstractVector{Index{T}}}; m::Int=1
-) where {T}
-    sites_ = collect(Iterators.flatten(sites))
-    Ψ = random_mps(rng, sites_, m)
-    tensors = ITensor[]
-    pos = 1
-    for i in 1:length(sites)
-        push!(tensors, prod(Ψ[pos:(pos + length(sites[i]) - 1)]))
-        pos += length(sites[i])
-    end
-    return MPS(tensors)
-end
-
-function _random_mpo(sites::AbstractVector{<:AbstractVector{Index{T}}}; m::Int=1) where {T}
-    return _random_mpo(Random.default_rng(), sites; m=m)
-end
-==#
