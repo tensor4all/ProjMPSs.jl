@@ -46,10 +46,9 @@ function project(
     )
 end
 
-
 function _iscompatible(projector::Projector, tensor::ITensor)
     # Lazy impmentation
-    norm(project(tensor, projector) - tensor) == 0.0
+    return norm(project(tensor, projector) - tensor) == 0.0
 end
 
 function _check_projector_compatibility(

@@ -5,7 +5,7 @@ Each index is projected to a positive integer.
 struct Projector{IndsT}
     data::Dict{IndsT,Int} # values must be positive.
 
-    function Projector{IndsT}(data::Dict{IndsT,Int}) where IndsT
+    function Projector{IndsT}(data::Dict{IndsT,Int}) where {IndsT}
         for (k, v) in data
             if v <= 0
                 error("Value at $(k) must be positive.")
@@ -19,7 +19,7 @@ function Projector(data::Dict{IndsT,Int}) where {IndsT}
     return Projector{IndsT}(data)
 end
 
-function Projector() 
+function Projector()
     return Projector{Index{Int}}(Dict{Index{Int},Int}())
 end
 
@@ -32,11 +32,10 @@ Base.keys(p::Projector) = keys(p.data)
 
 Base.:(==)(a::Projector, b::Projector)::Bool = (a.data == b.data)
 
-
 """
 `a < b` means that `a` is projected at a subset of the indices that `b` is projected at.
 """
-function Base.:(<)(a::Projector{IndsT}, b::Projector{IndsT})::Bool where IndsT
+function Base.:(<)(a::Projector{IndsT}, b::Projector{IndsT})::Bool where {IndsT}
     for k in intersect(keys(a.data), keys(b.data))
         if a[k] != b[k]
             return false
@@ -51,7 +50,9 @@ Base.:(>)(a::Projector, b::Projector)::Bool = (b < a)
 """
 `a & b` represents the intersection of the indices that `a` and `b` are projected at.
 """
-function Base.:&(a::Projector{IndsT}, b::Projector{IndsT})::Union{Nothing,Projector{IndsT}} where {IndsT}
+function Base.:&(
+    a::Projector{IndsT}, b::Projector{IndsT}
+)::Union{Nothing,Projector{IndsT}} where {IndsT}
     for k in intersect(keys(a.data), keys(b.data))
         if a[k] != b[k]
             return nothing
