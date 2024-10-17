@@ -16,6 +16,7 @@ Quantics = "87f76fb3-a40a-40c9-a63c-29fcfe7b7547"
 
 [compat]
 Coverage = "1"
+CoverageTools = "1"
 EllipsisNotation = "1"
 FastMPOContractions = "0.2.2"
 ITensors = "0.6"
