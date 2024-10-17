@@ -2,7 +2,7 @@ function ITensors.contract(M1::ProjMPS, M2::ProjMPS; kwargs...)::Union{ProjMPS,N
     if !hasoverlap(M1.projector, M2.projector)
         return nothing
     end
-    proj, external_sites = _projector_after_contract(M1, M2)
+    proj, _ = _projector_after_contract(M1, M2)
 
     Ψ = FMPOC.contract_mpo_mpo(MPO(collect(M1.data)), MPO(collect(M2.data)); kwargs...)
     return project(ProjMPS(Ψ), proj)
@@ -88,7 +88,7 @@ function projcontract(
     return _add(results; kwargs...)
 end
 
-_add_directsum(a, b) = +(a, b; alg="directsum")
+_add_directsum(a::AbstractMPS, b::AbstractMPS) = +(a, b; alg="directsum")
 
 function _add(Ψs::AbstractVector{MPO}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2)::MPO
     Ψsum::MPO = deepcopy(Ψs[1])

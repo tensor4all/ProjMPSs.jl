@@ -11,7 +11,9 @@ include("util.jl")
 include("projector.jl")
 include("blockstructure.jl")
 include("projmps.jl")
-include("projmpscontainer.jl")
+
+include("blockedmps.jl")
+
 include("contract.jl")
 
 end

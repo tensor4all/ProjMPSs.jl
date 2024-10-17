@@ -76,16 +76,6 @@ function _iscompatible(projector::Projector, Ψ::AbstractMPS)
     return all((_iscompatible(projector, x) for x in Ψ))
 end
 
-function find_nested_index(data::Vector{Vector{T}}, target::T) where {T}
-    for (i, subvector) in enumerate(data)
-        j = findfirst(x -> x == target, subvector)
-        if j !== nothing
-            return (i, j)
-        end
-    end
-    return nothing  # Not found
-end
-
 # Quantics Functions
 function Quantics.makesitediagonal(projmps::ProjMPS, site::Index)
     mps_diagonal = Quantics.makesitediagonal(MPS(projmps), site)
@@ -165,4 +155,24 @@ Base.isapprox(x::ProjMPS, y::ProjMPS; kwargs...) = Base.isapprox(x.data, y.data,
 
 function isprojectedat(obj::ProjMPS, ind::IndsT)::Bool where {IndsT}
     return isprojectedat(obj.projector, ind)
+end
+
+function Base.:+(a::ProjMPS, b::ProjMPS)::ProjMPS
+    return ProjMPS(_add_directsum(a.data, b.data), a.projector | b.projector)
+end
+
+function Base.:*(a::ProjMPS, b::Number)::ProjMPS
+    return ProjMPS(a.data * b, a.projector)
+end
+
+function Base.:*(a::Number, b::ProjMPS)::ProjMPS
+    return ProjMPS(b.data * a, b.projector)
+end
+
+function Base.:-(obj::ProjMPS)::ProjMPS
+    return ProjMPS(-1 * obj.data, obj.projector)
+end
+
+function ITensors.truncate(obj::ProjMPS; kwargs...)::ProjMPS
+    return project(ProjMPS(truncate(obj.data; kwargs...)), obj.projector)
 end
