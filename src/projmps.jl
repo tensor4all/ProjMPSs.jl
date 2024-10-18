@@ -62,6 +62,12 @@ function project(
 end
 
 function project(
+    Ψ::AbstractMPS, projector::Projector{IndsT}
+)::Union{Nothing,ProjMPS} where {IndsT}
+    return project(ProjMPS(Ψ), projector)
+end
+
+function project(
     projΨ::ProjMPS, projector::Dict{IndsT,Int}
 )::Union{Nothing,ProjMPS} where {IndsT}
     return project(projΨ, Projector(projector))
@@ -77,7 +83,8 @@ function _iscompatible(projector::Projector, Ψ::AbstractMPS)
 end
 
 # Quantics Functions
-function Quantics.makesitediagonal(projmps::ProjMPS, site::Index)
+function Quantics.makesitediagonal(projmps::ProjMPS, site::Index; plev=0)
+    error("AAAAA")
     mps_diagonal = Quantics.makesitediagonal(MPS(projmps), site)
     sites_diagonal = siteinds(all, mps_diagonal)
     projmps_diagonal = ProjMPS(mps_diagonal, sites_diagonal)
@@ -94,6 +101,14 @@ function Quantics.makesitediagonal(projmps::ProjMPS, site::Index)
     end
 
     return project(projmps_diagonal, prjsiteinds)
+end
+
+function Quantics.makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index})
+    # FIXME: Too many memory copies
+    for s in sites
+        projmps = Quantics.makesitediagonal(projmps, s)
+    end
+    return projmps
 end
 
 function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)

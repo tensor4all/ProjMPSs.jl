@@ -20,6 +20,8 @@ end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 
+ITensors.siteinds(obj::BlockedMPS) = ITensors.siteinds(first(obj.data))
+
 Base.length(obj::BlockedMPS) = length(obj.data)
 
 function Base.iterate(obj::BlockedMPS, state=1)
@@ -30,20 +32,20 @@ function Base.iterate(obj::BlockedMPS, state=1)
     #return (obj.data[state], state + 1)
 end
 
-function Quantics.extractdiagonal(obj::BlockedMPS)
-    return BlockedMPS([Quantics.extractdiagonal(projmps) for projmps in obj.data])
+function Quantics.extractdiagonal(obj::BlockedMPS, site)
+    return BlockedMPS([Quantics.extractdiagonal(projmps, site) for projmps in obj.data])
 end
 
-function Quantics.rearrange_siteinds(obj::BlockedMPS)
-    return BlockedMPS([Quantics.rearrange_siteinds(projmps) for projmps in projmpss.data])
+function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
+    return BlockedMPS([Quantics.rearrange_siteinds(projmps, sites) for projmps in obj.data])
 end
 
 function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
     return BlockedMPS([prime(projmps, args...; kwargs...) for projmps in Ψ.data])
 end
 
-function Quantics.makesitediagonal(obj::BlockedMPS)
-    return BlockedMPS([Quantics.makesitediagonal(projmps) for projmps in obj.data])
+function Quantics.makesitediagonal(obj::BlockedMPS, site; plev=0)
+    return BlockedMPS([Quantics.makesitediagonal(projmps, site; plev=0) for projmps in obj.data])
 end
 
 Base.getindex(obj::BlockedMPS, i::Integer) = obj.data[i]
