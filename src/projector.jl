@@ -15,6 +15,11 @@ struct Projector{IndsT}
     end
 end
 
+function Base.hash(p::Projector, h::UInt)
+    tmp = hash(collect(Iterators.flatten(((hash(k, h), hash(v, h)) for (k, v) in p.data))))
+    return Base.hash(tmp, h)
+end
+
 function Projector(data::Dict{IndsT,Int}) where {IndsT}
     return Projector{IndsT}(data)
 end

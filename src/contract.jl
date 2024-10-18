@@ -16,6 +16,7 @@ function _projector_after_contract(M1::ProjMPS, M2::ProjMPS)
     external_sites = setdiff(union(sites1, sites2), intersect(sites1, sites2))
 
     proj = deepcopy(M1.projector.data)
+    empty!(proj)
 
     for s in external_sites
         if isprojectedat(M1, s)
@@ -65,12 +66,17 @@ Project two ProjMPS objects to `proj` before contracting them.
 The results are summed.
 """
 function projcontract(
-    M1::AbstractVector{ProjMPS}, M2::AbstractVector{ProjMPS}, proj::Projector; kwargs...
-)
+    M1::AbstractVector{ProjMPS},
+    M2::AbstractVector{ProjMPS},
+    proj::Projector;
+    alg::String="naive",
+    kwargs...,
+)::Union{Nothing,ProjMPS}
     results = ProjMPS[]
+    t1 = time_ns()
     for M1_ in M1
         for M2_ in M2
-            r = projcontract(M1_, M2_, proj; kwargs...)
+            r = projcontract(M1_, M2_, proj; alg, kwargs...)
             if r !== nothing
                 push!(results, r)
             end
@@ -85,7 +91,13 @@ function projcontract(
         return results[1]
     end
 
-    return _add(results; kwargs...)
+    t2 = time_ns()
+    res = _add(results; kwargs...)
+    t3 = time_ns()
+    #println("mul time: ", (t2 - t1) / 1e9)
+    #println("add time: ", (t3 - t2) / 1e9)
+
+    return res
 end
 
 _add_directsum(a::AbstractMPS, b::AbstractMPS) = +(a, b; alg="directsum")
@@ -106,4 +118,20 @@ function _add(
     sum_mps = _add(mpos; cutoff, maxdim, nsweeps)
     newprj = reduce(|, (x.projector for x in Ψs))
     return project(ProjMPS(sum_mps), newprj)
+end
+
+function ITensors.contract(M1::BlockedMPS, M2::BlockedMPS; kwargs...)::Union{BlockedMPS}
+    blocks = OrderedSet((
+        _projector_after_contract(b1, b2)[1] for b1 in M1.data, b2 in M2.data
+    ))
+    prjmpss = ProjMPS[]
+    M1_::Vector{ProjMPS} = collect(M1)
+    M2_::Vector{ProjMPS} = collect(M2)
+    for b in blocks
+        res = projcontract(M1_, M2_, b; kwargs...)
+        if res !== nothing
+            push!(prjmpss, res)
+        end
+    end
+    return BlockedMPS(prjmpss)
 end

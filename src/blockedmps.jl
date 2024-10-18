@@ -20,6 +20,16 @@ end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 
+Base.length(obj::BlockedMPS) = length(obj.data)
+
+function Base.iterate(obj::BlockedMPS, state=1)
+    if state > length(obj.data)
+        return nothing
+    end
+    return Base.iterate(obj.data, state)
+    #return (obj.data[state], state + 1)
+end
+
 function Quantics.extractdiagonal(obj::BlockedMPS)
     return BlockedMPS([Quantics.extractdiagonal(projmps) for projmps in obj.data])
 end
@@ -37,8 +47,11 @@ function Quantics.makesitediagonal(obj::BlockedMPS)
 end
 
 Base.getindex(obj::BlockedMPS, i::Integer) = obj.data[i]
+
 function Base.getindex(obj::BlockedMPS, p::Projector)
-    return obj.data[findfirst(x -> x.projector == p, obj.data)]
+    idx = findfirst(x -> x.projector == p, obj.data)
+    idx !== nothing || error("Projector $(p) not found")
+    return first(Iterators.drop(obj.data, idx - 1))
 end
 
 function Base.:+(a::BlockedMPS, b::BlockedMPS)::BlockedMPS
@@ -54,23 +67,22 @@ function Base.:+(a::BlockedMPS, b::BlockedMPS)::BlockedMPS
             error("Something went wrong")
         end
     end
-    @show projmpss
     return BlockedMPS(projmpss)
 end
 
-function Base.:*(a::ProjMPS, b::Number)::ProjMPS
+function Base.:*(a::BlockedMPS, b::Number)::ProjMPS
     return BlockedMPS([a[p] * b for p in a.projector])
 end
 
-function Base.:*(a::Number, b::ProjMPS)::ProjMPS
+function Base.:*(a::Number, b::BlockedMPS)::ProjMPS
     return BlockedMPS([a * b[p] for p in b.projector])
 end
 
-function Base.:-(obj::ProjMPS)::ProjMPS
+function Base.:-(obj::BlockedMPS)::ProjMPS
     return -1 * obj
 end
 
-function ITensors.truncate(obj::ProjMPS; kwargs...)::ProjMPS
+function ITensors.truncate(obj::BlockedMPS; kwargs...)::ProjMPS
     return BlockedMPS([truncate(projmps; kwargs...) for projmps in obj.data])
 end
 

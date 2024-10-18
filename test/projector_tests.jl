@@ -24,6 +24,17 @@ import ProjMPSs: Projector, hasoverlap
         @test (p3 < p1) == true
     end
 
+    @testset "hash" begin
+        R = 10
+        sitesx = [Index(2, "Qubit,x=$n") for n in 1:R]
+        sitesy = [Index(2, "Qubit,y=$n") for n in 1:R]
+
+        p1 = Projector(Dict(sitesx[1] => 1, sitesy[1] => 1))
+        p2 = Projector(Dict(sitesx[1] => 1, sitesy[1] => 1))
+
+        @test hash(p1, UInt(0)) == hash(p2, UInt(0))
+    end
+
     @testset "intersection" begin
         inds = [Index(2, "n=$n") for n in 1:10]
 

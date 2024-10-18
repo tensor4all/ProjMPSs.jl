@@ -68,5 +68,8 @@ import Quantics: asMPO
             )
             @test res.data ≈ MPS(collect(ref.data))
         end
+
+        ab = contract(BlockedMPS(vec(proj_a)), BlockedMPS(vec(proj_b)); alg="naive")
+        @test MPS(ab) ≈ MPS(collect(contract(a, b; alg="naive")))
     end
 end
