@@ -57,3 +57,15 @@ function shallowcopy(original)
     new_fields = [Base.copy(getfield(original, name)) for name in fieldnames]
     return (typeof(original))(new_fields...)
 end
+
+
+function _asdiagonal(t, site::Index{T}; baseplev=0)::ITensor where {T<:Number}
+    hasinds(t, site') && error("Found $(site')")
+    links = uniqueinds(inds(t), site)
+    rawdata = Array(t, links..., site)
+    tensor = zeros(eltype(t), size(rawdata)..., dim(site))
+    for i in 1:dim(site)
+        tensor[.., i, i] = rawdata[.., i]
+    end
+    return ITensor(tensor, links..., prime(site, baseplev+1), prime(site, baseplev))
+end

@@ -1,6 +1,7 @@
 module ProjMPSs
 
 import OrderedCollections: OrderedSet
+using EllipsisNotation
 
 using ITensors
 

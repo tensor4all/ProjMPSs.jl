@@ -82,35 +82,29 @@ function _iscompatible(projector::Projector, Ψ::AbstractMPS)
     return all((_iscompatible(projector, x) for x in Ψ))
 end
 
-# Quantics Functions
-function Quantics.makesitediagonal(projmps::ProjMPS, site::Index; plev=0)
-    error("AAAAA")
-    mps_diagonal = Quantics.makesitediagonal(MPS(projmps), site)
-    sites_diagonal = siteinds(all, mps_diagonal)
-    projmps_diagonal = ProjMPS(mps_diagonal, sites_diagonal)
-
-    prjsiteinds = Dict{Index{Int},Int}()
-    for (p, s) in zip(projmps.projector, siteinds(projmps))
-        for (p_, s_) in zip(p, s)
-            iszero(p_) && continue
-            prjsiteinds[s_] = p_
-            if s_ == site
-                prjsiteinds[s_'] = p_
-            end
-        end
+function _makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}; baseplev=0) where {IndsT}
+    M_ = deepcopy(MPO(collect(MPS(projmps))))
+    for site in sites
+        target_site::Int = only(findsites(M_, site))
+        M_[target_site] = _asdiagonal(M_[target_site], site; baseplev=baseplev)
     end
+    return project(M_, projmps.projector)
+end
 
-    return project(projmps_diagonal, prjsiteinds)
+function _makesitediagonal(projmps::ProjMPS, site::Index; baseplev=0)
+    return _makesitediagonal(projmps, [site]; baseplev=baseplev)
+end
+
+# Quantics Functions
+function Quantics.makesitediagonal(projmps::ProjMPS, site::Index)
+    return _makesitediagonal(projmps, site; baseplev=0)
 end
 
 function Quantics.makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index})
-    # FIXME: Too many memory copies
-    for s in sites
-        projmps = Quantics.makesitediagonal(projmps, s)
-    end
-    return projmps
+    return _makesitediagonal(projmps, sites; baseplev=0)
 end
 
+#==
 function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)
     mps_diagonal = Quantics.makesitediagonal(MPS(projmps), tag)
     projmps_diagonal = ProjMPS(mps_diagonal)
@@ -128,24 +122,29 @@ function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)
 
     return project(projmps_diagonal, newproj)
 end
+==#
 
-function Quantics.extractdiagonal(projmps::ProjMPS, tag::String)
-    mps_diagonal = Quantics.extractdiagonal(MPS(projmps), tag)
-    projmps_diagonal = ProjMPS(mps_diagonal)
-
-    target_sites = Quantics.findallsiteinds_by_tag(
-        unique(noprime.(Iterators.flatten(siteinds(projmps)))); tag=tag
-    )
-
-    newproj = deepcopy(projmps.projector)
-
-    for s in target_sites
-        if isprojectedat(newproj, s)
-            delete!(newproj, s')
+function extractdiagonal(projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}) where {IndsT}
+    tensors = collect(projmps.data)
+    for i in eachindex(tensors)
+        for site in intersect(sites, inds(tensors[i]))
+            @show inds(tensors[i])
+            @show site
+            tensors[i] = Quantics._extract_diagonal(tensors[i], site, site'')
         end
     end
 
-    return project(projmps_diagonal, newproj)
+    projector = deepcopy(projmps.projector)
+    for site in sites
+        if site' in keys(projector.data)
+            delete!(projector.data, site')
+        end
+    end
+    return ProjMPS(MPS(tensors), projector)
+end
+
+function extractdiagonal(projmps::ProjMPS, site::Index{IndsT}) where {IndsT}
+    return Quantics.extractdiagonal(projmps, [site])
 end
 
 function Quantics.rearrange_siteinds(projmps::ProjMPS, sites)

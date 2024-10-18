@@ -8,11 +8,13 @@ function Quantics.automul(
     tag_shared::String="",
     tag_col::String="",
     alg="naive",
+    maxdim=typemax(Int),
+    cutoff=1e-25,
     kwargs...,
 )
-    length.(siteinds(M1)) .== 1 || error("M1 should have only 1 site index per site")
-    length.(siteinds(M2)) .== 1 || error("M2 should have only 1 site index per site")
-    
+    all(length.(siteinds(M1)) .== 1) || error("M1 should have only 1 site index per site")
+    all(length.(siteinds(M2)) .== 1) || error("M2 should have only 1 site index per site")
+
     sites_row = _findallsiteinds_by_tag(M1; tag=tag_row)
     sites_shared = _findallsiteinds_by_tag(M1; tag=tag_shared)
     sites_col = _findallsiteinds_by_tag(M2; tag=tag_col)
@@ -22,8 +24,8 @@ function Quantics.automul(
     sites2_ewmul = setdiff(only.(siteinds(M2)), sites_matmul)
     sites2_ewmul == sites1_ewmul || error("Invalid sites for elementwise multiplication")
 
-    M1 = Quantics.makesitediagonal(M1, sites1_ewmul; plev=1)
-    M2 = Quantics.makesitediagonal(M2, sites2_ewmul; plev=0)
+    M1 = _makesitediagonal(M1, sites1_ewmul; baseplev=1)
+    M2 = _makesitediagonal(M2, sites2_ewmul; baseplev=0)
 
     M1 = Quantics.rearrange_siteinds(
         M1, combinesites(deepcopy(siteinds(M1)), sites_row, sites_shared)
@@ -34,16 +36,20 @@ function Quantics.automul(
     )
 
     M = contract(M1, M2; alg=alg, kwargs...)
+    @show M
 
-    M = Quantics.extractdiagonal(M, sites1_ewmul)
+    M = extractdiagonal(M, sites1_ewmul)
 
-    return Quantics.rearrange_siteinds(
-        M, collect(Iterators.flatten(siteinds.(M)))
-    )
+    @show siteinds(M)
+    ressites = [[x] for x in Iterators.flatten(siteinds(M))]
+    return truncate(Quantics.rearrange_siteinds(M, ressites); cutoff=cutoff, maxdim=maxdim)
 end
 
-
-function combinesites(sites::Vector{Vector{Index}}, site1::AbstractVector{Index}, site2::AbstractVector{Index})
+function combinesites(
+    sites::Vector{Vector{Index{IndsT}}},
+    site1::AbstractVector{Index{IndsT}},
+    site2::AbstractVector{Index{IndsT}},
+) where {IndsT}
     length(site1) == length(site2) || error("Length mismatch")
     for (s1, s2) in zip(site1, site2)
         sites = combinesites(sites, s1, s2)
@@ -51,23 +57,27 @@ function combinesites(sites::Vector{Vector{Index}}, site1::AbstractVector{Index}
     return sites
 end
 
-function combinesites(sites::Vector{Vector{Index}}, site1::Index, site2::Index)
+function combinesites(
+    sites::Vector{Vector{Index{IndsT}}}, site1::Index, site2::Index
+) where {IndsT}
     sites = deepcopy(sites)
-    p1 = findfirst(x=>x[1] == site1, sites)
-    p2 = findfirst(x=>x[1] == site2, sites)
+    p1 = findfirst(x -> x[1] == site1, sites)
+    p2 = findfirst(x -> x[1] == site2, sites)
     if p1 === nothing || p2 === nothing
         error("Site not found")
     end
     if abs(p1 - p2) != 1
         error("Sites are not adjacent")
     end
-    deleteat!(sites, minimum(p1, p2))
-    deleteat!(sites, minimum(p1, p2))
-    insert!(sites, minimum(p1, p2), [site1, site2])
+    deleteat!(sites, min(p1, p2))
+    deleteat!(sites, min(p1, p2))
+    insert!(sites, min(p1, p2), [site1, site2])
     return sites
 end
 
-_findallsiteinds_by_tag(M::BlockMPS; tag=tag) = Quantics.findallsiteinds_by_tag(only.(siteinds(M)); tag=tag)
+function _findallsiteinds_by_tag(M::BlockedMPS; tag=tag)
+    return Quantics.findallsiteinds_by_tag(only.(siteinds(M)); tag=tag)
+end
 
 #==
 function combinesites(M::ProjMPS, site1::Index, site2::Index)::ProjMPS
