@@ -82,7 +82,9 @@ function _iscompatible(projector::Projector, Ψ::AbstractMPS)
     return all((_iscompatible(projector, x) for x in Ψ))
 end
 
-function _makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}; baseplev=0) where {IndsT}
+function _makesitediagonal(
+    projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}; baseplev=0
+) where {IndsT}
     M_ = deepcopy(MPO(collect(MPS(projmps))))
     for site in sites
         target_site::Int = only(findsites(M_, site))
@@ -104,7 +106,6 @@ function Quantics.makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index
     return _makesitediagonal(projmps, sites; baseplev=0)
 end
 
-#==
 function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)
     mps_diagonal = Quantics.makesitediagonal(MPS(projmps), tag)
     projmps_diagonal = ProjMPS(mps_diagonal)
@@ -122,15 +123,25 @@ function Quantics.makesitediagonal(projmps::ProjMPS, tag::String)
 
     return project(projmps_diagonal, newproj)
 end
-==#
 
-function extractdiagonal(projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}) where {IndsT}
+# FIXME: may be type unstable
+function _find_site_allplevs(tensor::ITensor, site::Index; maxplev=10)
+    plev(site) == 0 || error("Site index must be unprimed.")
+    return [prime(site, plev) for plev in 0:maxplev if prime(site, plev) ∈ inds(tensor)]
+end
+
+function extractdiagonal(
+    projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}
+) where {IndsT}
     tensors = collect(projmps.data)
     for i in eachindex(tensors)
         for site in intersect(sites, inds(tensors[i]))
-            @show inds(tensors[i])
-            @show site
-            tensors[i] = Quantics._extract_diagonal(tensors[i], site, site'')
+            sitewithallplevs = _find_site_allplevs(tensors[i], site)
+            tensors[i] = if length(sitewithallplevs) > 1
+                tensors[i] = Quantics._extract_diagonal(tensors[i], sitewithallplevs...)
+            else
+                tensors[i]
+            end
         end
     end
 
@@ -145,6 +156,13 @@ end
 
 function extractdiagonal(projmps::ProjMPS, site::Index{IndsT}) where {IndsT}
     return Quantics.extractdiagonal(projmps, [site])
+end
+
+function Quantics.extractdiagonal(projmps::ProjMPS, tag::String)::ProjMPS
+    targetsites = Quantics.findallsiteinds_by_tag(
+        unique(noprime.(_allsites(projmps))); tag=tag
+    )
+    return extractdiagonal(projmps, targetsites)
 end
 
 function Quantics.rearrange_siteinds(projmps::ProjMPS, sites)

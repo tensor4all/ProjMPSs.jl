@@ -45,7 +45,9 @@ function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
 end
 
 function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
-    return BlockedMPS([_makesitediagonal(projmps, site; baseplev=baseplev) for projmps in obj.data])
+    return BlockedMPS([
+        _makesitediagonal(projmps, site; baseplev=baseplev) for projmps in obj.data
+    ])
 end
 
 function Quantics.makesitediagonal(obj::BlockedMPS, site)

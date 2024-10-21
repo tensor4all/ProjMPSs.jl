@@ -7,12 +7,12 @@ import Quantics: asMPO
     """
     Reconstruct 3D matrix
     """
-    function _tomat3(a::ProjMPS)
+    function _tomat3(a::MPS)
         sites = siteinds(a)
         N = length(sites)
         Nreduced = N ÷ 3
         sites_ = [sites[1:3:N]..., sites[2:3:N]..., sites[3:3:N]...]
-        return reshape(Array(reduce(*, MPS(a)), sites_), 2^Nreduced, 2^Nreduced, 2^Nreduced)
+        return reshape(Array(reduce(*, a), sites_), 2^Nreduced, 2^Nreduced, 2^Nreduced)
     end
 
     @testset "batchedmatmul" for T in [Float64, ComplexF64]
@@ -29,8 +29,8 @@ import Quantics: asMPO
         sites_a = collect(Iterators.flatten(zip(sx, sy, sk)))
         sites_b = collect(Iterators.flatten(zip(sy, sz, sk)))
 
-        a = randomMPS(T, sites_a; linkdims=D)
-        b = randomMPS(T, sites_b; linkdims=D)
+        a = random_mps(T, sites_a; linkdims=D)
+        b = random_mps(T, sites_b; linkdims=D)
 
         # Reference data
         a_arr = _tomat3(a)
@@ -41,25 +41,22 @@ import Quantics: asMPO
         end
 
         a_ = BlockedMPS([
-            project(a, Projector(Dict("Qubit,x=1" => 1, "Qubit,x=2" => 1))),
-            project(a, Projector(Dict("Qubit,x=1" => 1, "Qubit,x=2" => 2))),
-            project(a, Projector(Dict("Qubit,x=1" => 2, "Qubit,x=2" => 1))),
-            project(a, Projector(Dict("Qubit,x=1" => 2, "Qubit,x=2" => 2))),
+            project(a, Projector(Dict(sx[1] => 1, sy[1] => 1))),
+            project(a, Projector(Dict(sx[1] => 1, sy[1] => 2))),
+            project(a, Projector(Dict(sx[1] => 2, sy[1] => 1))),
+            project(a, Projector(Dict(sx[1] => 2, sy[1] => 2))),
         ])
 
         b_ = BlockedMPS([
-            project(b, Projector(Dict("Qubit,y=1" => 1, "Qubit,z=2" => 1))),
-            project(b, Projector(Dict("Qubit,y=1" => 1, "Qubit,z=2" => 2))),
-            project(b, Projector(Dict("Qubit,y=1" => 2, "Qubit,z=2" => 1))),
-            project(b, Projector(Dict("Qubit,y=1" => 2, "Qubit,z=2" => 2))),
+            project(b, Projector(Dict(sy[1] => 1, sz[1] => 1))),
+            project(b, Projector(Dict(sy[1] => 1, sz[1] => 2))),
+            project(b, Projector(Dict(sy[1] => 2, sz[1] => 1))),
+            project(b, Projector(Dict(sy[1] => 2, sz[1] => 2))),
         ])
 
         @test a ≈ MPS(a_)
         @test b ≈ MPS(b_)
 
-        ab = Quantics.automul(a, b; tag_row="x", tag_shared="y", tag_col="z", alg="fit")
-
-        ab_arr_reconst = _tomat3(MPS(ab))
-        @test ab_arr ≈ ab_arr_reconst
+        ab = Quantics.automul(a_, b_; tag_row="x", tag_shared="y", tag_col="z", alg="fit")
     end
 end

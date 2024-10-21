@@ -36,11 +36,9 @@ function Quantics.automul(
     )
 
     M = contract(M1, M2; alg=alg, kwargs...)
-    @show M
 
     M = extractdiagonal(M, sites1_ewmul)
 
-    @show siteinds(M)
     ressites = [[x] for x in Iterators.flatten(siteinds(M))]
     return truncate(Quantics.rearrange_siteinds(M, ressites); cutoff=cutoff, maxdim=maxdim)
 end
