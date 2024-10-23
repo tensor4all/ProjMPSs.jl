@@ -1,6 +1,6 @@
 module ProjMPSs
 
-import OrderedCollections: OrderedSet
+import OrderedCollections: OrderedSet, OrderedDict
 using EllipsisNotation
 
 using ITensors

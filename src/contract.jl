@@ -73,7 +73,6 @@ function projcontract(
     kwargs...,
 )::Union{Nothing,ProjMPS}
     results = ProjMPS[]
-    t1 = time_ns()
     for M1_ in M1
         for M2_ in M2
             r = projcontract(M1_, M2_, proj; alg, kwargs...)
@@ -91,11 +90,7 @@ function projcontract(
         return results[1]
     end
 
-    t2 = time_ns()
     res = _add(results; kwargs...)
-    t3 = time_ns()
-    #println("mul time: ", (t2 - t1) / 1e9)
-    #println("add time: ", (t3 - t2) / 1e9)
 
     return res
 end

@@ -189,8 +189,41 @@ function isprojectedat(obj::ProjMPS, ind::IndsT)::Bool where {IndsT}
     return isprojectedat(obj.projector, ind)
 end
 
-function Base.:+(a::ProjMPS, b::ProjMPS)::ProjMPS
-    return ProjMPS(_add_directsum(a.data, b.data), a.projector | b.projector)
+function _fitsum(
+    input_states::AbstractVector{T},
+    init::T;
+    coeffs::AbstractVector{<:Number}=ones(Int, length(input_states)),
+    kwargs...,
+) where {T}
+    if !(:nsweeps ∈ keys(kwargs))
+        kwargs = Dict{Symbol,Any}(kwargs)
+        kwargs[:nsweeps] = 1
+    end
+    Ψs = [MPS(collect(x)) for x in input_states]
+    init_Ψ = MPS(collect(init))
+    res = FMPOC.fit(Ψs, init_Ψ; coeffs=coeffs, kwargs...)
+    return T(collect(res))
+end
+
+function _add(ψ::AbstractMPS...; alg=ITensors.Algorithm"fit"(), cutoff=1e-15, kwargs...)
+    alg = ITensors.Algorithm(alg)
+    if alg == ITensors.Algorithm"directsum"()
+        return +(ITensors.Algorithm(alg), ψ...)
+    elseif alg == ITensors.Algorithm"densitymatrix"()
+        return +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, kwargs...)
+    elseif alg == ITensors.Algorithm"fit"()
+        res_dm = +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, kwargs...)
+        return _fitsum(collect(ψ), res_dm; cutoff, kwargs...)
+    else
+        error("Unknown algorithm $(alg)!")
+    end
+end
+
+function Base.:+(Ψ::ProjMPS...; alg=ITensors.Algorithm"directsum"(), cutoff=0.0, maxdim=typemax(Int), kwargs...)::ProjMPS
+    return ProjMPS(
+        _add([x.data for x in Ψ]...; alg=alg, cutoff=cutoff, maxdim=maxdim),
+        reduce(|, [x.projector for x in Ψ])
+    )
 end
 
 function Base.:*(a::ProjMPS, b::Number)::ProjMPS
