@@ -1,5 +1,5 @@
 using Test
-import ProjMPSs: Projector, project, ProjMPS, projcontract, _add_directsum
+import ProjMPSs: Projector, project, ProjMPS, projcontract
 import FastMPOContractions as FMPOC
 import Quantics: asMPO
 
@@ -59,7 +59,7 @@ import Quantics: asMPO
                 cutoff=cutoff,
             )
             ref = reduce(
-                _add_directsum,
+                (x, y) -> +(x, y; alg="directsum"),
                 [
                     FMPOC.contract_mpo_mpo(
                         asMPO(proj_a[x, k].data), asMPO(proj_b[k, y].data); alg="naive"
@@ -70,6 +70,6 @@ import Quantics: asMPO
         end
 
         ab = contract(BlockedMPS(vec(proj_a)), BlockedMPS(vec(proj_b)); alg="naive")
-        @test MPS(ab) ≈ MPS(collect(contract(a, b; alg="naive")))
+        @test MPS(ab) ≈ MPS(collect(contract(a, b; alg="naive"))) rtol = 10 * sqrt(cutoff)
     end
 end

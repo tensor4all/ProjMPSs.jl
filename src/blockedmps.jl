@@ -1,11 +1,16 @@
 
-struct BlockedMPS{K}
-    data::Dict{K,ProjMPS}
+struct BlockedMPS{IndsT}
+    data::Dict{Projector{IndsT},ProjMPS}
 
-    function BlockedMPS{K}(data::Dict{K,ProjMPS})::BlockedMPS{K} where {K}
+    function BlockedMPS{IndsT}(data::Dict{Projector{IndsT},ProjMPS}) where {IndsT}
         sites_all = [siteinds(prjmps) for (_, prjmps) in data]
         for n in 2:length(data)
             Set(sites_all[n]) == Set(sites_all[1]) || error("Sitedims mismatch")
+        end
+        for (p, prjmps) in data
+            if prjmps.projector != p
+                error("Projector mismatch")
+            end
         end
         projectors = [prjmps.projector for (_, prjmps) in data]
         for (n, a) in enumerate(projectors), (m, b) in enumerate(projectors)
@@ -15,16 +20,15 @@ struct BlockedMPS{K}
                 end
             end
         end
-        return new{K}(data)
+        return new(data)
     end
-
 end
 
-function BlockedMPS(data::Dict{K,ProjMPS})::BlockedMPS{K} where {K}
-    return BlockedMPS{K}(data)
+function BlockedMPS(data::Dict{Projector{IndsT},ProjMPS}) where {IndsT}
+    return BlockedMPS{IndsT}(data)
 end
 
-function BlockedMPS(data::AbstractVector{ProjMPS})::BlockedMPS
+function BlockedMPS(data::AbstractVector{ProjMPS})
     dict = Dict(data[i].projector => data[i] for i in 1:length(data))
     if length(dict) != length(data)
         error("Projectors are not unique")
@@ -34,18 +38,16 @@ end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 
-ITensors.siteinds(obj::BlockedMPS) = ITensors.siteinds(first(obj.data))
+ITensors.siteinds(obj::BlockedMPS) = ITensors.siteinds(first(values(obj.data)))
 
 Base.length(obj::BlockedMPS) = length(obj.data)
 
-"""
-Iterate over all data like a dictionary
-"""
-function Base.iterate(obj::BlockedMPS, state=1)
-    if state > length(obj.data)
-        return nothing
-    end
-    return (obj.data[state], state + 1)
+function Base.iterate(bmps::BlockedMPS, state)
+    return iterate(bmps.data, state)
+end
+
+function Base.iterate(bmps::BlockedMPS)
+    return iterate(bmps.data)
 end
 
 function Base.keys(obj::BlockedMPS)
@@ -56,44 +58,50 @@ function Base.values(obj::BlockedMPS)
     return values(obj.data)
 end
 
-function extractdiagonal(obj::BlockedMPS{K}, site) where {K}
-    return BlockedMPS{K}(Dict(k => extractdiagonal(prjmps, site) for (k, prjmps) in obj))
+function extractdiagonal(obj::BlockedMPS, site)
+    return BlockedMPS(Dict(k => extractdiagonal(prjmps, site) for (k, prjmps) in obj))
 end
 
-function Quantics.rearrange_siteinds(obj::BlockedMPS{K}, sites) where {K}
-    return BlockedMPS{K}(
-        Dict(k => Quantics.rearrange_siteinds(projmps, sites) for (k, prjmps) in obj)
+function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
+    return BlockedMPS(
+        Dict(k => Quantics.rearrange_siteinds(prjmps, sites) for (k, prjmps) in obj)
     )
 end
 
-function ITensors.prime(Ψ::BlockedMPS{K}, args...; kwargs...) where {K}
-    return BlockedMPS{K}(Dict(k => prime(prjmps, args...; kwargs...) for (k, prjmps) in Ψ))
+function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
+    return BlockedMPS(Dict(k => prime(prjmps, args...; kwargs...) for (k, prjmps) in Ψ))
 end
 
-function Quantics.makesitediagonal(obj::BlockedMPS{K}, site) where {K}
-    return BlockedMPS{K}(
+function Quantics.makesitediagonal(obj::BlockedMPS, site)
+    return BlockedMPS(
         Dict(k => _makesitediagonal(prjmps, site; baseplev=baseplev) for (k, prjmps) in obj)
     )
 end
 
-function Quantics.makesitediagonal(obj::BlockedMPS{K}, site) where {K}
-    return BlockedMPS{K}(Dict(k => Quantics.makesitediagonal(prjmps, site) for (k, prjmps) in obj))
+function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
+    return BlockedMPS(
+        Dict(k => _makesitediagonal(prjmps, site; baseplev=baseplev) for (k, prjmps) in obj)
+    )
 end
 
-Base.getindex(obj::BlockedMPS{K}, i::K) where {K} = obj.data[i]
+function Base.getindex(obj::BlockedMPS{IndsT}, p::Projector{IndsT}) where {IndsT}
+    return obj.data[p]
+end
 
-#function Base.getindex(obj::BlockedMPS, p::Projector)
-    #idx = findfirst(x -> x.projector == p, obj.data)
-    #idx !== nothing || error("Projector $(p) not found")
-    #return first(Iterators.drop(obj.data, idx - 1))
-#end
-
-function Base.:+(a::BlockedMPS{K}, b::BlockedMPS{K}; alg=ITensors.Algorithm"directsum"(), cutoff=0.0, maxdim=typemax(Int), kwargs...)::BlockedMPS{K} where {K}
-    data = Dict{K,ProjMPS}()
+function Base.:+(
+    a::BlockedMPS{IndsT},
+    b::BlockedMPS{IndsT};
+    alg=ITensors.Algorithm"directsum"(),
+    cutoff=0.0,
+    maxdim=typemax(Int),
+    kwargs...,
+)::BlockedMPS{IndsT} where {IndsT}
+    alg = ITensors.Algorithm(alg)
+    data = Dict{Projector{IndsT},ProjMPS}()
     for k in union(keys(a), keys(b))
         if k ∈ keys(a) && k ∈ keys(b)
             a[k].projector == b[k].projector || error("Projectors mismatch at $(k)")
-            data[k] = +(a[k], b[k]; cutoff=cutoff, maxdim=maxdim, kwargs...)
+            data[k] = +(a[k], b[k]; alg, cutoff, maxdim, kwargs...)
         elseif k ∈ keys(a)
             data[k] = a[k]
         elseif k ∈ keys(b)
@@ -102,23 +110,25 @@ function Base.:+(a::BlockedMPS{K}, b::BlockedMPS{K}; alg=ITensors.Algorithm"dire
             error("Something went wrong")
         end
     end
-    return BlockedMPS{K}(data)
+    return BlockedMPS{IndsT}(data)
 end
 
-function Base.:*(a::BlockedMPS{K}, b::Number)::BlockedMPS{K} where {K}
-    return BlockedMPS{K}(Dict(k => a[k] * b for k in keys(a)))
+function Base.:*(a::BlockedMPS{IndsT}, b::Number)::BlockedMPS{IndsT} where {IndsT}
+    return BlockedMPS([a[k] * b for k in keys(a)])
 end
 
-function Base.:*(a::Number, b::BlockedMPS)::BlockedMPS
+function Base.:*(a::Number, b::BlockedMPS{IndsT})::BlockedMPS{IndsT} where {IndsT}
     return b * a
 end
 
-function Base.:-(obj::BlockedMPS)::BlockedMPS
+function Base.:-(obj::BlockedMPS{IndsT})::BlockedMPS{IndsT} where {IndsT}
     return -1 * obj
 end
 
-function ITensors.truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
-    return BlockedMPS(Dict(k => truncate(v; kwargs...) for (k, v) in obj))
+function ITensors.truncate(
+    obj::BlockedMPS{IndsT}; kwargs...
+)::BlockedMPS{IndsT} where {IndsT}
+    return BlockedMPS{IndsT}(Dict(k => truncate(v; kwargs...) for (k, v) in obj))
 end
 
 # Only for debug

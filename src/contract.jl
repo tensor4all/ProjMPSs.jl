@@ -1,10 +1,18 @@
-function ITensors.contract(M1::ProjMPS, M2::ProjMPS; kwargs...)::Union{ProjMPS,Nothing}
+# just for backward compatibility...
+_alg_map = Dict(
+    ITensors.Algorithm(alg) => alg for alg in ["directsum", "densitymatrix", "fit", "naive"]
+)
+
+function ITensors.contract(M1::ProjMPS, M2::ProjMPS; alg, kwargs...)::Union{ProjMPS,Nothing}
     if !hasoverlap(M1.projector, M2.projector)
         return nothing
     end
     proj, _ = _projector_after_contract(M1, M2)
 
-    Ψ = FMPOC.contract_mpo_mpo(MPO(collect(M1.data)), MPO(collect(M2.data)); kwargs...)
+    alg_str::String = alg isa String ? alg : _alg_map[alg]
+    Ψ = FMPOC.contract_mpo_mpo(
+        MPO(collect(M1.data)), MPO(collect(M2.data)); alg=alg_str, kwargs...
+    )
     return project(ProjMPS(Ψ), proj)
 end
 
@@ -69,7 +77,9 @@ function projcontract(
     M1::AbstractVector{ProjMPS},
     M2::AbstractVector{ProjMPS},
     proj::Projector;
-    alg::String="naive",
+    alg=ITensors.Algorithm"fit"(),
+    cutoff=1e-25,
+    maxdim=typemax(Int),
     kwargs...,
 )::Union{Nothing,ProjMPS}
     results = ProjMPS[]
@@ -90,40 +100,26 @@ function projcontract(
         return results[1]
     end
 
-    res = _add(results; kwargs...)
+    res = _add(results...; alg="fit", cutoff, maxdim, kwargs...)
 
     return res
 end
 
-_add_directsum(a::AbstractMPS, b::AbstractMPS) = +(a, b; alg="directsum")
-
-function _add(Ψs::AbstractVector{MPO}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2)::MPO
-    Ψsum::MPO = deepcopy(Ψs[1])
-    for Ψ::MPO in Ψs[2:end]
-        Ψsum = +(Ψsum, Ψ; alg="directsum")
-        truncate!(Ψsum; cutoff, maxdim)
-    end
-    return FMPOC.fit(Ψs, Ψsum; maxdim, cutoff, nsweeps)
-end
-
-function _add(
-    Ψs::AbstractVector{ProjMPS}; cutoff=0.0, maxdim=typemax(Int), nsweeps=2
-)::ProjMPS
-    mpos::Vector{MPO} = [MPO(collect(x.data)) for x in Ψs]
-    sum_mps = _add(mpos; cutoff, maxdim, nsweeps)
-    newprj = reduce(|, (x.projector for x in Ψs))
-    return project(ProjMPS(sum_mps), newprj)
-end
-
-function ITensors.contract(M1::BlockedMPS, M2::BlockedMPS; kwargs...)::Union{BlockedMPS}
+function ITensors.contract(
+    M1::BlockedMPS,
+    M2::BlockedMPS;
+    alg=ITensors.Algorithm"fit"(),
+    maxdim=typemax(Int),
+    kwargs...,
+)::Union{BlockedMPS}
     blocks = OrderedSet((
-        _projector_after_contract(b1, b2)[1] for b1 in M1.data, b2 in M2.data
+        _projector_after_contract(b1, b2)[1] for b1 in values(M1), b2 in values(M2)
     ))
     prjmpss = ProjMPS[]
-    M1_::Vector{ProjMPS} = collect(M1)
-    M2_::Vector{ProjMPS} = collect(M2)
+    M1_::Vector{ProjMPS} = collect(values(M1))
+    M2_::Vector{ProjMPS} = collect(values(M2))
     for b in blocks
-        res = projcontract(M1_, M2_, b; kwargs...)
+        res = projcontract(M1_, M2_, b; alg, kwargs...)
         if res !== nothing
             push!(prjmpss, res)
         end

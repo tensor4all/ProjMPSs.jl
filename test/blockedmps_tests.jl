@@ -42,8 +42,8 @@ import ProjMPSs: Projector, project, ProjMPS, BlockedMPS
         prjΨ1 = project(prjΨ, Dict(sitesx[1] => 1))
         prjΨ2 = project(prjΨ, Dict(sitesx[1] => 2))
 
-        a = BlockedMPS(Dict((1,1) => prjΨ1))
-        b = BlockedMPS(Dict((2,2) => prjΨ2))
+        a = BlockedMPS(prjΨ1)
+        b = BlockedMPS(prjΨ2)
 
         @test MPS(2 * a) ≈ 2 * MPS(a) rtol = 1e-13
         @test MPS(a * 2) ≈ 2 * MPS(a) rtol = 1e-13

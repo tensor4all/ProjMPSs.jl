@@ -215,14 +215,35 @@ function _add(ψ::AbstractMPS...; alg=ITensors.Algorithm"fit"(), cutoff=1e-15, k
         res_dm = +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, kwargs...)
         return _fitsum(collect(ψ), res_dm; cutoff, kwargs...)
     else
-        error("Unknown algorithm $(alg)!")
+        error("Unknown algorithm $(alg) for addition!")
     end
 end
 
-function Base.:+(Ψ::ProjMPS...; alg=ITensors.Algorithm"directsum"(), cutoff=0.0, maxdim=typemax(Int), kwargs...)::ProjMPS
-    return ProjMPS(
-        _add([x.data for x in Ψ]...; alg=alg, cutoff=cutoff, maxdim=maxdim),
-        reduce(|, [x.projector for x in Ψ])
+function Base.:+(
+    Ψ::ProjMPS...;
+    alg=ITensors.Algorithm"directsum"(),
+    cutoff=0.0,
+    maxdim=typemax(Int),
+    kwargs...,
+)::ProjMPS
+    return _add(Ψ...; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
+end
+
+function _add(
+    Ψ::ProjMPS...;
+    alg=ITensors.Algorithm"directsum"(),
+    cutoff=0.0,
+    maxdim=typemax(Int),
+    kwargs...,
+)::ProjMPS
+    return project(
+        _add(
+            [x.data for x in Ψ]...;
+            alg=ITensors.Algorithm(alg),
+            cutoff=cutoff,
+            maxdim=maxdim,
+        ),
+        reduce(|, [x.projector for x in Ψ]),
     )
 end
 

@@ -1,5 +1,5 @@
 using Test
-import ProjMPSs: Projector, project, ProjMPS, projcontract, _add_directsum
+import ProjMPSs: Projector, project, ProjMPS, projcontract
 import FastMPOContractions as FMPOC
 import Quantics: asMPO
 
@@ -21,6 +21,7 @@ import Quantics: asMPO
         """
         nbit = 2
         D = 2
+        cutoff = 1e-25
         sx = [Index(2, "Qubit,x=$n") for n in 1:nbit]
         sy = [Index(2, "Qubit,y=$n") for n in 1:nbit]
         sz = [Index(2, "Qubit,z=$n") for n in 1:nbit]
@@ -57,6 +58,13 @@ import Quantics: asMPO
         @test a ≈ MPS(a_)
         @test b ≈ MPS(b_)
 
-        ab = Quantics.automul(a_, b_; tag_row="x", tag_shared="y", tag_col="z", alg="fit")
+        ab = Quantics.automul(
+            a_, b_; tag_row="x", tag_shared="y", tag_col="z", alg="fit", cutoff
+        )
+        ab_ref = Quantics.automul(
+            a, b; tag_row="x", tag_shared="y", tag_col="z", alg="fit", cutoff
+        )
+
+        @test MPS(ab) ≈ ab_ref rtol = 10 * sqrt(cutoff)
     end
 end

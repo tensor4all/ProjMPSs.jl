@@ -20,6 +20,8 @@ function Quantics.automul(
     sites_col = _findallsiteinds_by_tag(M2; tag=tag_col)
     sites_matmul = Set(Iterators.flatten([sites_row, sites_shared, sites_col]))
 
+    sites1 = only.(siteinds(M1))
+    sites2 = only.(siteinds(M2))
     sites1_ewmul = setdiff(only.(siteinds(M1)), sites_matmul)
     sites2_ewmul = setdiff(only.(siteinds(M2)), sites_matmul)
     sites2_ewmul == sites1_ewmul || error("Invalid sites for elementwise multiplication")
@@ -37,9 +39,27 @@ function Quantics.automul(
 
     M = contract(M1, M2; alg=alg, kwargs...)
 
+    #@show siteinds(M)
     M = extractdiagonal(M, sites1_ewmul)
+    #@show sites1_ewmul
+    #@show siteinds(M)
 
-    ressites = [[x] for x in Iterators.flatten(siteinds(M))]
+    #ressites = [[x] for x in Iterators.flatten(siteinds(M))]
+    ressites = Vector{eltype(siteinds(M1)[1])}[]
+    for s in siteinds(M)
+        s_ = unique(noprime.(s))
+        if length(s_) == 1
+            push!(ressites, s_)
+        else
+            if s_ ∈ sites1
+                push!(ressites, [s_[1]])
+                push!(ressites, [s_[2]])
+            else
+                push!(ressites, [s_[2]])
+                push!(ressites, [s_[1]])
+            end
+        end
+    end
     return truncate(Quantics.rearrange_siteinds(M, ressites); cutoff=cutoff, maxdim=maxdim)
 end
 
