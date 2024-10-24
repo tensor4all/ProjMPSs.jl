@@ -1,39 +1,24 @@
 
-struct BlockedMPS{IndsT}
-    data::Dict{Projector{IndsT},ProjMPS}
+struct BlockedMPS
+    data::OrderedDict{Projector,ProjMPS}
 
-    function BlockedMPS{IndsT}(data::Dict{Projector{IndsT},ProjMPS}) where {IndsT}
-        sites_all = [siteinds(prjmps) for (_, prjmps) in data]
+    function BlockedMPS(data::AbstractVector{ProjMPS})
+        sites_all = [siteinds(prjmps) for prjmps in data]
         for n in 2:length(data)
             Set(sites_all[n]) == Set(sites_all[1]) || error("Sitedims mismatch")
         end
-        for (p, prjmps) in data
-            if prjmps.projector != p
-                error("Projector mismatch")
-            end
-        end
-        projectors = [prjmps.projector for (_, prjmps) in data]
-        for (n, a) in enumerate(projectors), (m, b) in enumerate(projectors)
+        for (n, a) in enumerate(data), (m, b) in enumerate(data)
             if n != m
-                if hasoverlap(a, b)
-                    error("$(a) and $(b) is overlapping")
+                if hasoverlap(a.projector, b.projector)
+                    error("$(a.projector) and $(b.projector) is overlapping")
                 end
             end
         end
-        return new(data)
+        dict_ = OrderedDict{Projector,ProjMPS}(
+            data[i].projector => data[i] for i in 1:length(data)
+        )
+        return new(dict_)
     end
-end
-
-function BlockedMPS(data::Dict{Projector{IndsT},ProjMPS}) where {IndsT}
-    return BlockedMPS{IndsT}(data)
-end
-
-function BlockedMPS(data::AbstractVector{ProjMPS})
-    dict = Dict(data[i].projector => data[i] for i in 1:length(data))
-    if length(dict) != length(data)
-        error("Projectors are not unique")
-    end
-    return BlockedMPS(dict)
 end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
@@ -41,6 +26,8 @@ BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 ITensors.siteinds(obj::BlockedMPS) = ITensors.siteinds(first(values(obj.data)))
 
 Base.length(obj::BlockedMPS) = length(obj.data)
+
+Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS = first(Iterators.drop(values(bmps.data), i - 1))
 
 function Base.iterate(bmps::BlockedMPS, state)
     return iterate(bmps.data, state)
@@ -59,76 +46,79 @@ function Base.values(obj::BlockedMPS)
 end
 
 function extractdiagonal(obj::BlockedMPS, site)
-    return BlockedMPS(Dict(k => extractdiagonal(prjmps, site) for (k, prjmps) in obj))
+    return BlockedMPS([extractdiagonal(prjmps, site) for prjmps in values(obj)])
 end
 
 function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
     return BlockedMPS(
-        Dict(k => Quantics.rearrange_siteinds(prjmps, sites) for (k, prjmps) in obj)
+        [Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)]
     )
 end
 
 function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
-    return BlockedMPS(Dict(k => prime(prjmps, args...; kwargs...) for (k, prjmps) in Ψ))
+    return BlockedMPS(
+        [prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)]
+    )
 end
 
 function Quantics.makesitediagonal(obj::BlockedMPS, site)
     return BlockedMPS(
-        Dict(k => _makesitediagonal(prjmps, site; baseplev=baseplev) for (k, prjmps) in obj)
+        [_makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)]
     )
 end
 
 function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
     return BlockedMPS(
-        Dict(k => _makesitediagonal(prjmps, site; baseplev=baseplev) for (k, prjmps) in obj)
+        [_makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)]
     )
 end
 
-function Base.getindex(obj::BlockedMPS{IndsT}, p::Projector{IndsT}) where {IndsT}
-    return obj.data[p]
-end
+Base.getindex(obj::BlockedMPS, p::Projector) = obj.data[p]
 
+"""
+Add two BlockedMPS objects.
+
+If the two projects have the same projectors in the same order, the resulting BlockedMPS will have the same projectors in the same order.
+"""
 function Base.:+(
-    a::BlockedMPS{IndsT},
-    b::BlockedMPS{IndsT};
+    a::BlockedMPS,
+    b::BlockedMPS;
     alg=ITensors.Algorithm"directsum"(),
     cutoff=0.0,
     maxdim=typemax(Int),
     kwargs...,
-)::BlockedMPS{IndsT} where {IndsT}
+)::BlockedMPS
     alg = ITensors.Algorithm(alg)
-    data = Dict{Projector{IndsT},ProjMPS}()
-    for k in union(keys(a), keys(b))
+    data = ProjMPS[]
+    for k in unique(vcat(collect(keys(a)), collect(keys(b)))) # preserve order
         if k ∈ keys(a) && k ∈ keys(b)
             a[k].projector == b[k].projector || error("Projectors mismatch at $(k)")
-            data[k] = +(a[k], b[k]; alg, cutoff, maxdim, kwargs...)
+            push!(data, +(a[k], b[k]; alg, cutoff, maxdim, kwargs...))
         elseif k ∈ keys(a)
-            data[k] = a[k]
+            push!(data, a[k])
         elseif k ∈ keys(b)
-            data[k] = b[k]
+            push!(data, b[k])
         else
             error("Something went wrong")
         end
     end
-    return BlockedMPS{IndsT}(data)
+    return BlockedMPS(data)
 end
 
-function Base.:*(a::BlockedMPS{IndsT}, b::Number)::BlockedMPS{IndsT} where {IndsT}
+function Base.:*(a::BlockedMPS, b::Number)::BlockedMPS
     return BlockedMPS([a[k] * b for k in keys(a)])
 end
 
-function Base.:*(a::Number, b::BlockedMPS{IndsT})::BlockedMPS{IndsT} where {IndsT}
+function Base.:*(a::Number, b::BlockedMPS)::BlockedMPS
     return b * a
 end
 
-function Base.:-(obj::BlockedMPS{IndsT})::BlockedMPS{IndsT} where {IndsT}
+function Base.:-(obj::BlockedMPS)::BlockedMPS
     return -1 * obj
 end
 
-function ITensors.truncate(
-    obj::BlockedMPS{IndsT}; kwargs...
-)::BlockedMPS{IndsT} where {IndsT}
-    return BlockedMPS{IndsT}(Dict(k => truncate(v; kwargs...) for (k, v) in obj))
+function ITensors.truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
+    return BlockedMPS([truncate(v; kwargs...) for v in values(obj)])
 end
 
 # Only for debug

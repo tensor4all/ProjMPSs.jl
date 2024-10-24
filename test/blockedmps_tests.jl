@@ -24,7 +24,8 @@ import ProjMPSs: Projector, project, ProjMPS, BlockedMPS
         @test_throws ErrorException BlockedMPS([prjΨ1, prjΨ1])
 
         Ψreconst = BlockedMPS(prjΨ1) + BlockedMPS(prjΨ2)
-        length(Ψreconst.data)
+        @test Ψreconst[1] == prjΨ1
+        @test Ψreconst[2] == prjΨ2
         @test MPS(Ψreconst) ≈ Ψ
     end
 
