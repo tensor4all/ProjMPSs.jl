@@ -51,7 +51,7 @@ end
 Project two ProjMPS objects to `proj` before contracting them.
 """
 function projcontract(
-    M1::ProjMPS, M2::ProjMPS, proj::Projector; kwargs...
+    M1::ProjMPS, M2::ProjMPS, proj::Projector; alg=ITensors.Algorithm"fit"(), cutoff=1e-25, maxdim=typemax(Int), kwargs...
 )::Union{Nothing,ProjMPS}
     # Project M1 and M2 to `proj` before contracting
     M1 = project(M1, proj)
@@ -66,7 +66,7 @@ function projcontract(
         error("The projector contains projection onto a site what is not a external sites.")
     end
 
-    return ITensors.contract(M1, M2; kwargs...)
+    return ITensors.contract(M1, M2; alg, cutoff, maxdim, kwargs...)
 end
 
 """
@@ -78,6 +78,7 @@ function projcontract(
     M2::AbstractVector{ProjMPS},
     proj::Projector;
     alg=ITensors.Algorithm"fit"(),
+    alg_sum=ITensors.Algorithm"fit"(),
     cutoff=1e-25,
     maxdim=typemax(Int),
     kwargs...,
@@ -85,7 +86,7 @@ function projcontract(
     results = ProjMPS[]
     for M1_ in M1
         for M2_ in M2
-            r = projcontract(M1_, M2_, proj; alg, kwargs...)
+            r = projcontract(M1_, M2_, proj; alg, cutoff, maxdim, kwargs...)
             if r !== nothing
                 push!(results, r)
             end
@@ -100,7 +101,8 @@ function projcontract(
         return results[1]
     end
 
-    res = _add(results...; alg="fit", cutoff, maxdim, kwargs...)
+    #res = _add(results...; alg="fit", cutoff, maxdim, kwargs...)
+    res = _add(results...; alg=alg_sum, cutoff, maxdim, kwargs...)
 
     return res
 end
@@ -109,6 +111,7 @@ function ITensors.contract(
     M1::BlockedMPS,
     M2::BlockedMPS;
     alg=ITensors.Algorithm"fit"(),
+    cutoff=1e-25,
     maxdim=typemax(Int),
     kwargs...,
 )::Union{BlockedMPS}
@@ -119,7 +122,7 @@ function ITensors.contract(
     M1_::Vector{ProjMPS} = collect(values(M1))
     M2_::Vector{ProjMPS} = collect(values(M2))
     for b in blocks
-        res = projcontract(M1_, M2_, b; alg, kwargs...)
+        res = projcontract(M1_, M2_, b; alg, cutoff, maxdim, kwargs...)
         if res !== nothing
             push!(prjmpss, res)
         end
