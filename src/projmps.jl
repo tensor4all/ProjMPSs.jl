@@ -5,7 +5,7 @@ struct ProjMPS
     data::MPS
     projector::Projector
 
-    function ProjMPS(data::AbstractMPS, projector::Projector{IndsT}) where {IndsT}
+    function ProjMPS(data::AbstractMPS, projector::Projector)
         _iscompatible(projector, data) || error(
             "Incompatible projector and data. Even small numerical noise can cause this error.",
         )
@@ -14,7 +14,7 @@ struct ProjMPS
     end
 end
 
-ITensors.siteinds(obj::ProjMPS) = siteinds(MPO([x for x in obj.data]))
+ITensors.siteinds(obj::ProjMPS) = collect(siteinds(MPO([x for x in obj.data])))
 
 _allsites(Ψ::AbstractMPS) = collect(Iterators.flatten(siteinds(MPO(collect(Ψ)))))
 _allsites(Ψ::ProjMPS) = _allsites(Ψ.data)
@@ -31,26 +31,29 @@ function _trim_projector(obj::AbstractMPS, projector)
 end
 
 function ProjMPS(Ψ::AbstractMPS)
-    IndsT = typeof(first(siteinds(MPS(collect(Ψ)))))
-    return ProjMPS(Ψ, Projector{IndsT}())
+    return ProjMPS(Ψ, Projector())
 end
 
 # Conversion Functions
 ITensors.MPS(projΨ::ProjMPS) = projΨ.data
 
-function project(tensor::ITensor, projector::Projector{IndsT}) where {IndsT}
+function project(tensor::ITensor, projector::Projector)
     slice = Union{Int,Colon}[
         isprojectedat(projector, idx) ? projector[idx] : Colon() for idx in inds(tensor)
     ]
     data_org = Array(tensor, inds(tensor)...)
     data_trim = zero(data_org)
-    data_trim[slice...] .= data_org[slice...]
+    if all(broadcast(x -> x isa Integer, slice))
+       data_trim[slice...] = data_org[slice...]
+    else
+       data_trim[slice...] .= data_org[slice...]
+    end
     return ITensor(data_trim, inds(tensor)...)
 end
 
 function project(
-    projΨ::ProjMPS, projector::Projector{IndsT}
-)::Union{Nothing,ProjMPS} where {IndsT}
+    projΨ::ProjMPS, projector::Projector
+)::Union{Nothing,ProjMPS}
     newprj = projector & projΨ.projector
     if newprj === nothing
         return nothing
@@ -62,19 +65,19 @@ function project(
 end
 
 function project(
-    Ψ::AbstractMPS, projector::Projector{IndsT}
-)::Union{Nothing,ProjMPS} where {IndsT}
+    Ψ::AbstractMPS, projector::Projector
+)::Union{Nothing,ProjMPS}
     return project(ProjMPS(Ψ), projector)
 end
 
 function project(
-    projΨ::ProjMPS, projector::Dict{IndsT,Int}
-)::Union{Nothing,ProjMPS} where {IndsT}
+    projΨ::ProjMPS, projector::Dict{InsT,Int}
+)::Union{Nothing,ProjMPS} where {InsT}
     return project(projΨ, Projector(projector))
 end
 
 function _iscompatible(projector::Projector, tensor::ITensor)
-    # Lazy impmentation
+    # Lazy implementation
     return norm(project(tensor, projector) - tensor) == 0.0
 end
 
