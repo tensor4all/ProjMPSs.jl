@@ -209,6 +209,9 @@ function _add(ψ::AbstractMPS...; alg=ITensors.Algorithm"fit"(), cutoff=1e-15, k
     if alg == ITensors.Algorithm"directsum"()
         return +(ITensors.Algorithm(alg), ψ...)
     elseif alg == ITensors.Algorithm"densitymatrix"()
+        if cutoff < 1e-15
+            @warn "Cutoff is very small, it may suffer from numerical round errors. The densitymatrix algorithm squares the singular values of the reduce density matrix. Please consider increasing it or using fit algorithm."
+        end
         return +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, kwargs...)
     elseif alg == ITensors.Algorithm"fit"()
         res_dm = +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, kwargs...)
