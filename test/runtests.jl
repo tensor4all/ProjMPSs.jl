@@ -1,5 +1,6 @@
 import ProjMPSs as PM
 using Random
+using ITensors
 using Test
 
 include("_util.jl")

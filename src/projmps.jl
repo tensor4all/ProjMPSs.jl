@@ -44,16 +44,14 @@ function project(tensor::ITensor, projector::Projector)
     data_org = Array(tensor, inds(tensor)...)
     data_trim = zero(data_org)
     if all(broadcast(x -> x isa Integer, slice))
-       data_trim[slice...] = data_org[slice...]
+        data_trim[slice...] = data_org[slice...]
     else
-       data_trim[slice...] .= data_org[slice...]
+        data_trim[slice...] .= data_org[slice...]
     end
     return ITensor(data_trim, inds(tensor)...)
 end
 
-function project(
-    projΨ::ProjMPS, projector::Projector
-)::Union{Nothing,ProjMPS}
+function project(projΨ::ProjMPS, projector::Projector)::Union{Nothing,ProjMPS}
     newprj = projector & projΨ.projector
     if newprj === nothing
         return nothing
@@ -64,9 +62,7 @@ function project(
     )
 end
 
-function project(
-    Ψ::AbstractMPS, projector::Projector
-)::Union{Nothing,ProjMPS}
+function project(Ψ::AbstractMPS, projector::Projector)::Union{Nothing,ProjMPS}
     return project(ProjMPS(Ψ), projector)
 end
 
@@ -264,4 +260,16 @@ end
 
 function ITensors.truncate(obj::ProjMPS; kwargs...)::ProjMPS
     return project(ProjMPS(truncate(obj.data; kwargs...)), obj.projector)
+end
+
+function _norm(M::AbstractMPS)
+    if isortho(M)
+        return norm(M[orthocenter(M)])
+    end
+    norm2_M = dot(M, M)
+    return sqrt(abs(norm2_M))
+end
+
+function ITensors.norm(M::ProjMPS)
+    return _norm(MPS(M))
 end

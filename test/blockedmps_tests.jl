@@ -27,6 +27,7 @@ import ProjMPSs: Projector, project, ProjMPS, BlockedMPS
         @test Ψreconst[1] == prjΨ1
         @test Ψreconst[2] == prjΨ2
         @test MPS(Ψreconst) ≈ Ψ
+        @test ITensors.norm(Ψreconst) ≈ ITensors.norm(MPS(Ψreconst))
     end
 
     @testset "two blocks (general key)" begin

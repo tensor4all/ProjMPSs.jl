@@ -51,7 +51,14 @@ end
 Project two ProjMPS objects to `proj` before contracting them.
 """
 function projcontract(
-    M1::ProjMPS, M2::ProjMPS, proj::Projector; alg=ITensors.Algorithm"fit"(), cutoff=1e-25, maxdim=typemax(Int), kwargs...
+    M1::ProjMPS,
+    M2::ProjMPS,
+    proj::Projector;
+    alg=ITensors.Algorithm"fit"(),
+    cutoff=1e-25,
+    maxdim=typemax(Int),
+    verbosity=0,
+    kwargs...,
 )::Union{Nothing,ProjMPS}
     # Project M1 and M2 to `proj` before contracting
     M1 = project(M1, proj)

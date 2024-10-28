@@ -19,7 +19,7 @@ function Projector(data::Dict{Index{T},Int}) where {T}
     return Projector(Dict{Index,Int}(k => v for (k, v) in data))
 end
 
-function Projector() 
+function Projector()
     return Projector(Dict{Index,Int}())
 end
 
@@ -28,10 +28,8 @@ function Base.hash(p::Projector, h::UInt)
     return Base.hash(tmp, h)
 end
 
-
 Base.getindex(p::Projector, inds) = p.data[inds]
 Base.keys(p::Projector) = keys(p.data)
-
 
 function Base.iterate(obj::Projector, state)
     return iterate(obj.data, state)
@@ -40,7 +38,6 @@ end
 function Base.iterate(obj::Projector)
     return iterate(obj.data)
 end
-
 
 Base.:(==)(a::Projector, b::Projector)::Bool = (a.data == b.data)
 
@@ -62,9 +59,7 @@ Base.:(>)(a::Projector, b::Projector)::Bool = (b < a)
 """
 `a & b` represents the intersection of the indices that `a` and `b` are projected at.
 """
-function Base.:&(
-    a::Projector, b::Projector
-)::Union{Nothing,Projector}
+function Base.:&(a::Projector, b::Projector)::Union{Nothing,Projector}
     for k in intersect(keys(a.data), keys(b.data))
         if a[k] != b[k]
             return nothing

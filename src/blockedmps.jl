@@ -23,11 +23,14 @@ end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 
-ITensors.siteinds(obj::BlockedMPS) = ITensors.siteinds(first(values(obj.data)))
+function ITensors.siteinds(obj::BlockedMPS)
+    return [Set(x) for x in ITensors.siteinds(first(values(obj.data)))]
+end
 
 Base.length(obj::BlockedMPS) = length(obj.data)
 
-Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS = first(Iterators.drop(values(bmps.data), i - 1))
+Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS =
+    first(Iterators.drop(values(bmps.data), i - 1))
 
 function Base.iterate(bmps::BlockedMPS, state)
     return iterate(bmps.data, state)
@@ -50,27 +53,29 @@ function extractdiagonal(obj::BlockedMPS, site)
 end
 
 function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
-    return BlockedMPS(
-        [Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)]
-    )
+    return BlockedMPS([
+        Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)
+    ])
 end
 
 function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
-    return BlockedMPS(
-        [prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)]
-    )
+    return BlockedMPS([prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)])
+end
+
+function ITensors.norm(M::BlockedMPS)
+    return sqrt(reduce(+, (x^2 for x in ITensors.norm.(values(M)))))
 end
 
 function Quantics.makesitediagonal(obj::BlockedMPS, site)
-    return BlockedMPS(
-        [_makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)]
-    )
+    return BlockedMPS([
+        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
+    ])
 end
 
 function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
-    return BlockedMPS(
-        [_makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)]
-    )
+    return BlockedMPS([
+        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
+    ])
 end
 
 Base.getindex(obj::BlockedMPS, p::Projector) = obj.data[p]

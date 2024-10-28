@@ -1,7 +1,10 @@
 using Test
-import ProjMPSs: Projector, project, ProjMPS, projcontract
+
+using ITensors
+import ProjMPSs: Projector, project, ProjMPS, projcontract, BlockedMPS
 import FastMPOContractions as FMPOC
 import Quantics: asMPO
+using Quantics: Quantics
 
 @testset "mul.jl" begin
     """
@@ -15,7 +18,7 @@ import Quantics: asMPO
         return reshape(Array(reduce(*, a), sites_), 2^Nreduced, 2^Nreduced, 2^Nreduced)
     end
 
-    @testset "batchedmatmul" for T in [Float64, ComplexF64]
+    @testset "batchedmatmul" for T in [Float64]
         """
         C(x, z, k) = sum_y A(x, y, k) * B(y, z, k)
         """

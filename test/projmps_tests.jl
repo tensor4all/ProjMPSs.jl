@@ -3,10 +3,12 @@ using Test
 using ITensors
 
 using Quantics: Quantics
+using Random
 import ProjMPSs: Projector, project, ProjMPS
 
 @testset "projmps.jl" begin
     @testset "ProjMPS" begin
+        Random.seed!(1)
         N = 3
         sitesx = [Index(2, "x=$n") for n in 1:N]
         sitesy = [Index(2, "y=$n") for n in 1:N]
@@ -18,6 +20,8 @@ import ProjMPSs: Projector, project, ProjMPS
         prjΨ2 = project(prjΨ, Dict(sitesx[1] => 2))
 
         Ψreconst = MPS(prjΨ1) + MPS(prjΨ2)
+
+        @test ITensors.norm(prjΨ1) ≈ ITensors.norm(MPS(prjΨ1))
 
         @test Ψreconst ≈ Ψ
     end
