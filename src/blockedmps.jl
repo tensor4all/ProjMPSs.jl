@@ -39,13 +39,12 @@ Get the number of sites in the BlockedMPS
 """
 Base.length(obj::BlockedMPS) = length(first(obj.data))
 
-
 """
 Indexing for BlockedMPS. This is deprecated and will be removed in the future.
 """
 function Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS
     @warn "Indexing for BlockedMPS is deprecated. Use getindex(bmps, p::Projector) instead."
-    first(Iterators.drop(values(bmps.data), i - 1))
+    return first(Iterators.drop(values(bmps.data), i - 1))
 end
 
 Base.getindex(obj::BlockedMPS, p::Projector) = obj.data[p]
@@ -72,7 +71,6 @@ function Base.values(obj::BlockedMPS)
     return values(obj.data)
 end
 
-
 """
 Extract diagonal of the BlockedMPS for `s`, `s'`, ... for a given site index `s`,
 where `s` must have a prime level of 0.
@@ -80,7 +78,6 @@ where `s` must have a prime level of 0.
 function extractdiagonal(obj::BlockedMPS, site)
     return BlockedMPS([extractdiagonal(prjmps, site) for prjmps in values(obj)])
 end
-
 
 """
 Rearrange the site indices of the BlockedMPS according to the given order.
@@ -96,14 +93,12 @@ function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
     return BlockedMPS([prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)])
 end
 
-
 """
 Return the norm of the BlockedMPS.
 """
 function ITensors.norm(M::BlockedMPS)
     return sqrt(reduce(+, (x^2 for x in ITensors.norm.(values(M)))))
 end
-
 
 """
 Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
@@ -119,7 +114,6 @@ function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
         _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
     ])
 end
-
 
 """
 Add two BlockedMPS objects.
@@ -151,7 +145,6 @@ function Base.:+(
     end
     return BlockedMPS(data)
 end
-
 
 function Base.:*(a::BlockedMPS, b::Number)::BlockedMPS
     return BlockedMPS([a[k] * b for k in keys(a)])
