@@ -1,4 +1,7 @@
 
+"""
+BlockedMPS is a structure that holds multiple MPSs (ProjMPS) that are associated with different non-overlapping projectors.
+"""
 struct BlockedMPS
     data::OrderedDict{Projector,ProjMPS}
 
@@ -23,14 +26,29 @@ end
 
 BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 
+"""
+Return the site indices of the BlockedMPS.
+The site indices are returned as a vector of sets, where each set corresponds to the site indices at each site.
+"""
 function ITensors.siteinds(obj::BlockedMPS)
     return [Set(x) for x in ITensors.siteinds(first(values(obj.data)))]
 end
 
-Base.length(obj::BlockedMPS) = length(obj.data)
+"""
+Get the number of sites in the BlockedMPS
+"""
+Base.length(obj::BlockedMPS) = length(first(obj.data))
 
-Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS =
+
+"""
+Indexing for BlockedMPS. This is deprecated and will be removed in the future.
+"""
+function Base.getindex(bmps::BlockedMPS, i::Integer)::ProjMPS
+    @warn "Indexing for BlockedMPS is deprecated. Use getindex(bmps, p::Projector) instead."
     first(Iterators.drop(values(bmps.data), i - 1))
+end
+
+Base.getindex(obj::BlockedMPS, p::Projector) = obj.data[p]
 
 function Base.iterate(bmps::BlockedMPS, state)
     return iterate(bmps.data, state)
@@ -40,18 +58,34 @@ function Base.iterate(bmps::BlockedMPS)
     return iterate(bmps.data)
 end
 
+"""
+Return the keys, i.e., projectors of the BlockedMPS.
+"""
 function Base.keys(obj::BlockedMPS)
     return keys(obj.data)
 end
 
+"""
+Return the values, i.e., ProjMPS of the BlockedMPS.
+"""
 function Base.values(obj::BlockedMPS)
     return values(obj.data)
 end
 
+
+"""
+Extract diagonal of the BlockedMPS for `s`, `s'`, ... for a given site index `s`,
+where `s` must have a prime level of 0.
+"""
 function extractdiagonal(obj::BlockedMPS, site)
     return BlockedMPS([extractdiagonal(prjmps, site) for prjmps in values(obj)])
 end
 
+
+"""
+Rearrange the site indices of the BlockedMPS according to the given order.
+If nessecary, tensors are fused or split to match the new order.
+"""
 function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
     return BlockedMPS([
         Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)
@@ -62,10 +96,18 @@ function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
     return BlockedMPS([prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)])
 end
 
+
+"""
+Return the norm of the BlockedMPS.
+"""
 function ITensors.norm(M::BlockedMPS)
     return sqrt(reduce(+, (x^2 for x in ITensors.norm.(values(M)))))
 end
 
+
+"""
+Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
+"""
 function Quantics.makesitediagonal(obj::BlockedMPS, site)
     return BlockedMPS([
         _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
@@ -78,12 +120,12 @@ function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
     ])
 end
 
-Base.getindex(obj::BlockedMPS, p::Projector) = obj.data[p]
 
 """
 Add two BlockedMPS objects.
 
 If the two projects have the same projectors in the same order, the resulting BlockedMPS will have the same projectors in the same order.
+By default, we use `directsum` algorithm to compute the sum and no truncation is performed.
 """
 function Base.:+(
     a::BlockedMPS,
@@ -109,6 +151,7 @@ function Base.:+(
     end
     return BlockedMPS(data)
 end
+
 
 function Base.:*(a::BlockedMPS, b::Number)::BlockedMPS
     return BlockedMPS([a[k] * b for k in keys(a)])
