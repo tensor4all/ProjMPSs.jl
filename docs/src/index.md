@@ -1,14 +1,14 @@
 ```@meta
-CurrentModule = TCIAlgorithms
+CurrentModule = ProjMPSs
 ```
 
-# TCIAlgorithms
+# ProjMPSs
 
-Documentation for [TCIAlgorithms](https://gitlab.com/tensors4fields/TCIAlgorithms.jl).
+Documentation for [ProjMPSs](https://github.com/tensor4all/ProjMPSs.jl).
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [TCIAlgorithms]
+Modules = [ProjMPSs]
 ```
