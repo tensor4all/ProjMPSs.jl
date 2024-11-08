@@ -19,6 +19,8 @@ ITensors.siteinds(obj::ProjMPS) = collect(siteinds(MPO([x for x in obj.data])))
 _allsites(Ψ::AbstractMPS) = collect(Iterators.flatten(siteinds(MPO(collect(Ψ)))))
 _allsites(Ψ::ProjMPS) = _allsites(Ψ.data)
 
+maxbonddim(Ψ::ProjMPS) = maxlinkdim(Ψ.data)
+
 function _trim_projector(obj::AbstractMPS, projector)
     sites = Set(_allsites(obj))
     newprj = deepcopy(projector)

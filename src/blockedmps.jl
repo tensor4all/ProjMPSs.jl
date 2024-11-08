@@ -10,13 +10,8 @@ struct BlockedMPS
         for n in 2:length(data)
             Set(sites_all[n]) == Set(sites_all[1]) || error("Sitedims mismatch")
         end
-        for (n, a) in enumerate(data), (m, b) in enumerate(data)
-            if n != m
-                if hasoverlap(a.projector, b.projector)
-                    error("$(a.projector) and $(b.projector) is overlapping")
-                end
-            end
-        end
+        isdisjoint([prjmps.projector for prjmps in data]) || error("Projectors are overlapping")
+
         dict_ = OrderedDict{Projector,ProjMPS}(
             data[i].projector => data[i] for i in 1:length(data)
         )
@@ -30,9 +25,12 @@ BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 Return the site indices of the BlockedMPS.
 The site indices are returned as a vector of sets, where each set corresponds to the site indices at each site.
 """
-function ITensors.siteinds(obj::BlockedMPS)
+function siteindices(obj::BlockedMPS)
     return [Set(x) for x in ITensors.siteinds(first(values(obj.data)))]
 end
+
+ITensors.siteinds(obj::BlockedMPS) = siteindices(obj)
+
 
 """
 Get the number of sites in the BlockedMPS
@@ -165,4 +163,8 @@ end
 # Only for debug
 function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int), kwargs...)::MPS
     return reduce((x, y) -> +(x, y; kwargs), values(obj.data)).data # direct sum
+end
+
+function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int), kwargs...)::MPO
+    MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
 end

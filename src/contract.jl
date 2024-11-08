@@ -114,6 +114,11 @@ function projcontract(
     return res
 end
 
+"""
+Contract two Blocked MPS objects.
+
+At each site, the objects must share at least one site index.
+"""
 function ITensors.contract(
     M1::BlockedMPS,
     M2::BlockedMPS;
@@ -125,6 +130,11 @@ function ITensors.contract(
     blocks = OrderedSet((
         _projector_after_contract(b1, b2)[1] for b1 in values(M1), b2 in values(M2)
     ))
+    for b1 in blocks, b2 in blocks
+        if b1 != b2 && hasoverlap(b1, b2)
+            error("After contraction, projectors must not overlap.")
+        end
+    end
     prjmpss = ProjMPS[]
     M1_::Vector{ProjMPS} = collect(values(M1))
     M2_::Vector{ProjMPS} = collect(values(M2))

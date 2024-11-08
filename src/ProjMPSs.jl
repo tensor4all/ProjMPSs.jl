@@ -17,5 +17,6 @@ include("blockedmps.jl")
 
 include("contract.jl")
 include("mul.jl")
+include("adaptivemul.jl")
 
 end

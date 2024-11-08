@@ -75,4 +75,15 @@ import ProjMPSs: Projector, hasoverlap
         p2 = Projector()
         @test p1 | p2 == Projector()
     end
+
+    @testset "isdisjoint" begin
+        inds = [Index(2, "n=$n") for n in 1:10]
+
+        p1 = Projector(inds[1] => 1)
+        p2 = Projector(inds[1] => 2)
+        p3 = Projector(Dict(inds[1] => 1, inds[2] => 1))
+
+        @test isdisjoint([p1, p2, p3]) == false
+        @test isdisjoint([p1, p2]) == true
+    end
 end

@@ -1,4 +1,5 @@
 using ITensors
+using Random
 
 function _random_mpo(
     rng::AbstractRNG, sites::AbstractVector{<:AbstractVector{Index{T}}}; linkdims::Int=1
