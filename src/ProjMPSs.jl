@@ -3,8 +3,8 @@ module ProjMPSs
 import OrderedCollections: OrderedSet, OrderedDict
 using EllipsisNotation
 
-using ITensors
-
+import ITensors: ITensors, MPS, MPO, siteinds, Index, AbstractMPS, ITensor
+using LinearAlgebra: norm
 import FastMPOContractions as FMPOC
 
 using Quantics
@@ -15,7 +15,10 @@ include("projmps.jl")
 
 include("blockedmps.jl")
 
+include("patching.jl")
+
 include("contract.jl")
 include("mul.jl")
+include("adaptivemul.jl")
 
 end

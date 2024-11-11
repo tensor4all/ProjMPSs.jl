@@ -1,7 +1,7 @@
 using Test
 
 using ITensors
-import ProjMPSs: Projector, project, ProjMPS, projcontract, BlockedMPS
+import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, projcontract, BlockedMPS
 import FastMPOContractions as FMPOC
 import Quantics: asMPO
 using Quantics: Quantics
@@ -61,7 +61,7 @@ using Quantics: Quantics
         @test a ≈ MPS(a_)
         @test b ≈ MPS(b_)
 
-        ab = Quantics.automul(
+        ab = ProjMPSs.automul(
             a_, b_; tag_row="x", tag_shared="y", tag_col="z", alg="fit", cutoff
         )
         ab_ref = Quantics.automul(

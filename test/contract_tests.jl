@@ -1,5 +1,5 @@
 using Test
-import ProjMPSs: Projector, project, ProjMPS, projcontract
+import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, projcontract
 import FastMPOContractions as FMPOC
 import Quantics: asMPO
 
@@ -17,7 +17,7 @@ import Quantics: asMPO
         p1 = project(ProjMPS(_random_mpo(sitesa)), Projector(Dict(sitesx[1] => 1)))
         p2 = project(ProjMPS(_random_mpo(sitesb)), Projector(Dict(sitesz[1] => 1)))
 
-        p12 = ITensors.contract(p1, p2; alg="naive")
+        p12 = ProjMPSs.contract(p1, p2; alg="naive")
 
         @test p12.projector == Projector(Dict(sitesx[1] => 1, sitesz[1] => 1))
 
@@ -27,10 +27,10 @@ import Quantics: asMPO
         @test p12_2.projector == proj_subset
     end
 
-    @testset "contract (2x2)" begin
+    @testset "contract (2x2)" for patching in [true, false]
         R = 10
-        cutoff = 1e-25
-        linkdims = 2
+        cutoff = 1e-10
+        linkdims = 5
 
         sitesx = [Index(2, "Qubit,x=$n") for n in 1:R]
         sitesy = [Index(2, "Qubit,y=$n") for n in 1:R]
@@ -66,10 +66,20 @@ import Quantics: asMPO
                     ) for k in 1:2
                 ],
             )
-            @test res.data ≈ MPS(collect(ref.data))
+            @test res[1].data ≈ MPS(collect(ref.data))
         end
 
-        ab = contract(BlockedMPS(vec(proj_a)), BlockedMPS(vec(proj_b)); alg="naive")
-        @test MPS(ab) ≈ MPS(collect(contract(a, b; alg="naive"))) rtol = 10 * sqrt(cutoff)
+        patchorder = patching ? collect(Iterators.flatten(zip(sitesx, sitesz))) : Index[]
+        maxdim_ = patching ? linkdims^2 : typemax(Int)
+        ab = ProjMPSs.contract(
+            BlockedMPS(vec(proj_a)),
+            BlockedMPS(vec(proj_b));
+            alg="fit",
+            cutoff,
+            maxdim=maxdim_,
+            patchorder,
+        )
+        @test MPS(ab; cutoff) ≈ MPS(collect(contract(a, b; alg="naive"))) rtol =
+            10 * sqrt(cutoff)
     end
 end

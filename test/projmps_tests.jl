@@ -4,7 +4,15 @@ using ITensors
 
 using Quantics: Quantics
 using Random
-import ProjMPSs: Projector, project, ProjMPS
+
+import ProjMPSs:
+    ProjMPSs,
+    Projector,
+    project,
+    ProjMPS,
+    rearrange_siteinds,
+    makesitediagonal,
+    extractdiagonal
 
 @testset "projmps.jl" begin
     @testset "ProjMPS" begin
@@ -44,10 +52,10 @@ import ProjMPSs: Projector, project, ProjMPS
             push!(sites_rearranged, sitesxy[i])
             push!(sites_rearranged, [sitesz[i]])
         end
-        prjΨ1_rearranged = Quantics.rearrange_siteinds(prjΨ1, sites_rearranged)
+        prjΨ1_rearranged = rearrange_siteinds(prjΨ1, sites_rearranged)
 
         @test reduce(*, MPS(prjΨ1)) ≈ reduce(*, MPS(prjΨ1_rearranged))
-        @test siteinds(prjΨ1_rearranged) == sites_rearranged
+        @test ProjMPSs.siteinds(prjΨ1_rearranged) == sites_rearranged
     end
 
     @testset "makesitediagonal and extractdiagonal" begin
@@ -65,13 +73,13 @@ import ProjMPSs: Projector, project, ProjMPS
         prjΨ = ProjMPS(Ψ)
         prjΨ1 = project(prjΨ, Dict(sitesx[1] => 1))
 
-        prjΨ1_diagonalz = Quantics.makesitediagonal(prjΨ1, "y")
+        prjΨ1_diagonalz = makesitediagonal(prjΨ1, "y")
         sites_diagonalz = Iterators.flatten(siteinds(prjΨ1_diagonalz))
 
         psi_diag = prod(prjΨ1_diagonalz.data)
         psi = prod(prjΨ1.data)
 
-        @test Quantics.extractdiagonal(prjΨ1_diagonalz, "y") ≈ prjΨ1
+        @test extractdiagonal(prjΨ1_diagonalz, "y") ≈ prjΨ1
 
         for indval in eachindval(sites_diagonalz...)
             ind = first.(indval)

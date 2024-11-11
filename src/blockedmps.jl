@@ -10,13 +10,8 @@ struct BlockedMPS
         for n in 2:length(data)
             Set(sites_all[n]) == Set(sites_all[1]) || error("Sitedims mismatch")
         end
-        for (n, a) in enumerate(data), (m, b) in enumerate(data)
-            if n != m
-                if hasoverlap(a.projector, b.projector)
-                    error("$(a.projector) and $(b.projector) is overlapping")
-                end
-            end
-        end
+        isdisjoint([prjmps.projector for prjmps in data]) || error("Projectors are overlapping")
+
         dict_ = OrderedDict{Projector,ProjMPS}(
             data[i].projector => data[i] for i in 1:length(data)
         )
@@ -30,9 +25,11 @@ BlockedMPS(data::ProjMPS) = BlockedMPS([data])
 Return the site indices of the BlockedMPS.
 The site indices are returned as a vector of sets, where each set corresponds to the site indices at each site.
 """
-function ITensors.siteinds(obj::BlockedMPS)
+function siteindices(obj::BlockedMPS)
     return [Set(x) for x in ITensors.siteinds(first(values(obj.data)))]
 end
+
+ITensors.siteinds(obj::BlockedMPS) = siteindices(obj)
 
 """
 Get the number of sites in the BlockedMPS
@@ -83,10 +80,8 @@ end
 Rearrange the site indices of the BlockedMPS according to the given order.
 If nessecary, tensors are fused or split to match the new order.
 """
-function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
-    return BlockedMPS([
-        Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)
-    ])
+function rearrange_siteinds(obj::BlockedMPS, sites)
+    return BlockedMPS([rearrange_siteinds(prjmps, sites) for prjmps in values(obj)])
 end
 
 function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
@@ -103,7 +98,7 @@ end
 """
 Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
 """
-function Quantics.makesitediagonal(obj::BlockedMPS, site)
+function makesitediagonal(obj::BlockedMPS, site)
     return BlockedMPS([
         _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
     ])
@@ -124,12 +119,11 @@ By default, we use `directsum` algorithm to compute the sum and no truncation is
 function Base.:+(
     a::BlockedMPS,
     b::BlockedMPS;
-    alg=ITensors.Algorithm"directsum"(),
+    alg="directsum",
     cutoff=0.0,
     maxdim=typemax(Int),
     kwargs...,
 )::BlockedMPS
-    alg = ITensors.Algorithm(alg)
     data = ProjMPS[]
     for k in unique(vcat(collect(keys(a)), collect(keys(b)))) # preserve order
         if k ∈ keys(a) && k ∈ keys(b)
@@ -158,11 +152,17 @@ function Base.:-(obj::BlockedMPS)::BlockedMPS
     return -1 * obj
 end
 
-function ITensors.truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
+function truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
     return BlockedMPS([truncate(v; kwargs...) for v in values(obj)])
 end
 
 # Only for debug
-function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int), kwargs...)::MPS
-    return reduce((x, y) -> +(x, y; kwargs), values(obj.data)).data # direct sum
+function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
+    return reduce(
+        (x, y) -> truncate(+(x, y; alg="directsum"); cutoff, maxdim), values(obj.data)
+    ).data # direct sum
+end
+
+function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
+    return MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
 end

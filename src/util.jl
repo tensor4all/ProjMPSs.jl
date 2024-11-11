@@ -59,12 +59,14 @@ function shallowcopy(original)
 end
 
 function _asdiagonal(t, site::Index{T}; baseplev=0)::ITensor where {T<:Number}
-    hasinds(t, site') && error("Found $(site')")
-    links = uniqueinds(inds(t), site)
+    ITensors.hasinds(t, site') && error("Found $(site')")
+    links = ITensors.uniqueinds(ITensors.inds(t), site)
     rawdata = Array(t, links..., site)
-    tensor = zeros(eltype(t), size(rawdata)..., dim(site))
-    for i in 1:dim(site)
+    tensor = zeros(eltype(t), size(rawdata)..., ITensors.dim(site))
+    for i in 1:ITensors.dim(site)
         tensor[.., i, i] = rawdata[.., i]
     end
-    return ITensor(tensor, links..., prime(site, baseplev + 1), prime(site, baseplev))
+    return ITensor(
+        tensor, links..., ITensors.prime(site, baseplev + 1), ITensors.prime(site, baseplev)
+    )
 end
