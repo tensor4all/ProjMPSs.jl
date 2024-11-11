@@ -210,13 +210,7 @@ function _fitsum(
     return T(collect(res))
 end
 
-function _add(
-    ψ::AbstractMPS...;
-    alg="fit",
-    cutoff=1e-15,
-    maxdim=typemax(Int),
-    kwargs...,
-)
+function _add(ψ::AbstractMPS...; alg="fit", cutoff=1e-15, maxdim=typemax(Int), kwargs...)
     if alg == "directsum"
         return +(ITensors.Algorithm(alg), ψ...)
     elseif alg == "densitymatrix"
@@ -239,29 +233,16 @@ function _add(
 end
 
 function Base.:+(
-    Ψ::ProjMPS...;
-    alg="directsum",
-    cutoff=0.0,
-    maxdim=typemax(Int),
-    kwargs...,
+    Ψ::ProjMPS...; alg="directsum", cutoff=0.0, maxdim=typemax(Int), kwargs...
 )::ProjMPS
     return _add(Ψ...; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
 end
 
 function _add(
-    Ψ::ProjMPS...;
-    alg="directsum",
-    cutoff=0.0,
-    maxdim=typemax(Int),
-    kwargs...,
+    Ψ::ProjMPS...; alg="directsum", cutoff=0.0, maxdim=typemax(Int), kwargs...
 )::ProjMPS
     return project(
-        _add(
-            [x.data for x in Ψ]...;
-            alg=alg,
-            cutoff=cutoff,
-            maxdim=maxdim,
-        ),
+        _add([x.data for x in Ψ]...; alg=alg, cutoff=cutoff, maxdim=maxdim),
         reduce(|, [x.projector for x in Ψ]),
     )
 end
