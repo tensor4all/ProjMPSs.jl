@@ -8,7 +8,7 @@ function _add_patching(
     prjmpss::AbstractVector{ProjMPS};
     cutoff=0.0,
     maxdim=typemax(Int),
-    alg=ITensors.Algorithm"fit"(),
+    alg="fit",
     patchorder=Index[],
 )::Vector{ProjMPS}
     if length(unique([prjmps.projector for prjmps in prjmpss])) != 1

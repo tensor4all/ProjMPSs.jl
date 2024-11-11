@@ -54,7 +54,7 @@ function projcontract(
     M1::ProjMPS,
     M2::ProjMPS,
     proj::Projector;
-    alg=ITensors.Algorithm"fit"(),
+    alg="fit",
     cutoff=1e-25,
     maxdim=typemax(Int),
     verbosity=0,
@@ -88,8 +88,8 @@ function projcontract(
     M1::AbstractVector{ProjMPS},
     M2::AbstractVector{ProjMPS},
     proj::Projector;
-    alg=ITensors.Algorithm"fit"(),
-    alg_sum=ITensors.Algorithm"fit"(),
+    alg="fit",
+    alg_sum="fit",
     cutoff=1e-25,
     maxdim=typemax(Int),
     patchorder=Index[],
@@ -137,7 +137,7 @@ At each site, the objects must share at least one site index.
 function contract(
     M1::BlockedMPS,
     M2::BlockedMPS;
-    alg=ITensors.Algorithm"fit"(),
+    alg="fit",
     cutoff=1e-25,
     maxdim=typemax(Int),
     patchorder=Index[],

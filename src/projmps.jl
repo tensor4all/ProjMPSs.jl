@@ -212,20 +212,19 @@ end
 
 function _add(
     ψ::AbstractMPS...;
-    alg=ITensors.Algorithm"fit"(),
+    alg="fit",
     cutoff=1e-15,
     maxdim=typemax(Int),
     kwargs...,
 )
-    alg = ITensors.Algorithm(alg)
-    if alg == ITensors.Algorithm"directsum"()
+    if alg == "directsum"
         return +(ITensors.Algorithm(alg), ψ...)
-    elseif alg == ITensors.Algorithm"densitymatrix"()
+    elseif alg == "densitymatrix"
         if cutoff < 1e-15
             @warn "Cutoff is very small, it may suffer from numerical round errors. The densitymatrix algorithm squares the singular values of the reduce density matrix. Please consider increasing it or using fit algorithm."
         end
         return +(ITensors.Algorithm"densitymatrix"(), ψ...; cutoff, maxdim, kwargs...)
-    elseif alg == ITensors.Algorithm"fit"()
+    elseif alg == "fit"
         function f(x, y)
             return ITensors.truncate(
                 +(ITensors.Algorithm("directsum"), x, y); cutoff, maxdim
@@ -241,7 +240,7 @@ end
 
 function Base.:+(
     Ψ::ProjMPS...;
-    alg=ITensors.Algorithm"directsum"(),
+    alg="directsum",
     cutoff=0.0,
     maxdim=typemax(Int),
     kwargs...,
@@ -251,7 +250,7 @@ end
 
 function _add(
     Ψ::ProjMPS...;
-    alg=ITensors.Algorithm"directsum"(),
+    alg="directsum",
     cutoff=0.0,
     maxdim=typemax(Int),
     kwargs...,
@@ -259,7 +258,7 @@ function _add(
     return project(
         _add(
             [x.data for x in Ψ]...;
-            alg=ITensors.Algorithm(alg),
+            alg=alg,
             cutoff=cutoff,
             maxdim=maxdim,
         ),

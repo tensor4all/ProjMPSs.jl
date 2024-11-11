@@ -49,7 +49,7 @@ function adaptivecontract(
     a::BlockedMPS,
     b::BlockedMPS,
     pordering::AbstractVector{Index}=Index[];
-    alg=ITensors.Algorithm"fit"(),
+    alg="fit",
     cutoff=1e-25,
     maxdim=typemax(Int),
     kwargs...,

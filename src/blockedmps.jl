@@ -119,12 +119,11 @@ By default, we use `directsum` algorithm to compute the sum and no truncation is
 function Base.:+(
     a::BlockedMPS,
     b::BlockedMPS;
-    alg=ITensors.Algorithm"directsum"(),
+    alg="directsum",
     cutoff=0.0,
     maxdim=typemax(Int),
     kwargs...,
 )::BlockedMPS
-    alg = ITensors.Algorithm(alg)
     data = ProjMPS[]
     for k in unique(vcat(collect(keys(a)), collect(keys(b)))) # preserve order
         if k ∈ keys(a) && k ∈ keys(b)
