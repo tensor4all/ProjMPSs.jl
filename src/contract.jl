@@ -3,7 +3,7 @@ _alg_map = Dict(
     ITensors.Algorithm(alg) => alg for alg in ["directsum", "densitymatrix", "fit", "naive"]
 )
 
-function ITensors.contract(M1::ProjMPS, M2::ProjMPS; alg, kwargs...)::Union{ProjMPS,Nothing}
+function contract(M1::ProjMPS, M2::ProjMPS; alg, kwargs...)::Union{ProjMPS,Nothing}
     if !hasoverlap(M1.projector, M2.projector)
         return nothing
     end
@@ -73,7 +73,11 @@ function projcontract(
         error("The projector contains projection onto a site what is not a external sites.")
     end
 
-    return ITensors.contract(M1, M2; alg, cutoff, maxdim, kwargs...)
+    t1 = time_ns()
+    r = contract(M1, M2; alg, cutoff, maxdim, kwargs...)
+    t2 = time_ns()
+    #println("contract: $((t2 - t1)*1e-9) s")
+    return r
 end
 
 """
@@ -88,17 +92,23 @@ function projcontract(
     alg_sum=ITensors.Algorithm"fit"(),
     cutoff=1e-25,
     maxdim=typemax(Int),
+    patchorder=Index[],
     kwargs...,
-)::Union{Nothing,ProjMPS}
+)::Union{Nothing,Vector{ProjMPS}}
     results = ProjMPS[]
+    #T1 = time_ns()
     for M1_ in M1
         for M2_ in M2
+            #t1 = time_ns()
             r = projcontract(M1_, M2_, proj; alg, cutoff, maxdim, kwargs...)
+            #t2 = time_ns()
             if r !== nothing
                 push!(results, r)
             end
         end
     end
+    #T2 = time_ns()
+    #println("projcontract, all: $((T2 - T1)*1e-9) s")
 
     if isempty(results)
         return nothing
@@ -108,9 +118,14 @@ function projcontract(
         return results[1]
     end
 
-    #res = _add(results...; alg="fit", cutoff, maxdim, kwargs...)
-    res = _add(results...; alg=alg_sum, cutoff, maxdim, kwargs...)
-
+    res = if length(patchorder) > 0
+        _add_patching(results; cutoff, maxdim, patchorder, kwargs...)
+    else
+        [_add(results...; alg=alg_sum, cutoff, maxdim, kwargs...)]
+    end
+    #T3 = time_ns()
+    #println("mul: $((T2 - T1)*1e-9) s")
+    #println("add: $((T3 - T2)*1e-9) s")
     return res
 end
 
@@ -119,14 +134,16 @@ Contract two Blocked MPS objects.
 
 At each site, the objects must share at least one site index.
 """
-function ITensors.contract(
+function contract(
     M1::BlockedMPS,
     M2::BlockedMPS;
     alg=ITensors.Algorithm"fit"(),
     cutoff=1e-25,
     maxdim=typemax(Int),
+    patchorder=Index[],
     kwargs...,
 )::Union{BlockedMPS}
+    #T1 = time_ns()
     blocks = OrderedSet((
         _projector_after_contract(b1, b2)[1] for b1 in values(M1), b2 in values(M2)
     ))
@@ -139,10 +156,17 @@ function ITensors.contract(
     M1_::Vector{ProjMPS} = collect(values(M1))
     M2_::Vector{ProjMPS} = collect(values(M2))
     for b in blocks
-        res = projcontract(M1_, M2_, b; alg, cutoff, maxdim, kwargs...)
+        #t1 = time_ns()
+        res::Vector{ProjMPS} = projcontract(
+            M1_, M2_, b; alg, cutoff, maxdim, patchorder, kwargs...
+        )
+        #t2 = time_ns()
+        #println("projcontract: $((t2 - t1)*1e-9) s")
         if res !== nothing
-            push!(prjmpss, res)
+            append!(prjmpss, res)
         end
     end
+    #T2 = time_ns()
+    #println("projcontract, all: $((T2 - T1)*1e-9) s")
     return BlockedMPS(prjmpss)
 end

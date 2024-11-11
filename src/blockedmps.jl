@@ -31,7 +31,6 @@ end
 
 ITensors.siteinds(obj::BlockedMPS) = siteindices(obj)
 
-
 """
 Get the number of sites in the BlockedMPS
 """
@@ -81,10 +80,8 @@ end
 Rearrange the site indices of the BlockedMPS according to the given order.
 If nessecary, tensors are fused or split to match the new order.
 """
-function Quantics.rearrange_siteinds(obj::BlockedMPS, sites)
-    return BlockedMPS([
-        Quantics.rearrange_siteinds(prjmps, sites) for prjmps in values(obj)
-    ])
+function rearrange_siteinds(obj::BlockedMPS, sites)
+    return BlockedMPS([rearrange_siteinds(prjmps, sites) for prjmps in values(obj)])
 end
 
 function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
@@ -101,7 +98,7 @@ end
 """
 Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
 """
-function Quantics.makesitediagonal(obj::BlockedMPS, site)
+function makesitediagonal(obj::BlockedMPS, site)
     return BlockedMPS([
         _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
     ])
@@ -156,15 +153,17 @@ function Base.:-(obj::BlockedMPS)::BlockedMPS
     return -1 * obj
 end
 
-function ITensors.truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
+function truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
     return BlockedMPS([truncate(v; kwargs...) for v in values(obj)])
 end
 
 # Only for debug
-function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int), kwargs...)::MPS
-    return reduce((x, y) -> +(x, y; kwargs), values(obj.data)).data # direct sum
+function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
+    return reduce(
+        (x, y) -> truncate(+(x, y; alg="directsum"); cutoff, maxdim), values(obj.data)
+    ).data # direct sum
 end
 
-function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int), kwargs...)::MPO
-    MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
+function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
+    return MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
 end

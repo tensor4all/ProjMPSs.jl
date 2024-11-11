@@ -26,7 +26,8 @@ end
 """
 Constructing a projector from a single pair of index and integer.
 """
-Projector(singleproj::Pair{Index{T},Int}) where {T} = Projector(Dict{Index,Int}(singleproj.first => singleproj.second))
+Projector(singleproj::Pair{Index{T},Int}) where {T} =
+    Projector(Dict{Index,Int}(singleproj.first => singleproj.second))
 
 function Base.hash(p::Projector, h::UInt)
     tmp = hash(collect(Iterators.flatten(((hash(k, h), hash(v, h)) for (k, v) in p.data))))
@@ -100,7 +101,6 @@ end
 function isprojectedat(p::Projector, ind::Index{T})::Bool where {T}
     return ind ∈ keys(p.data)
 end
-
 
 """
 Return if projectors are not overlapping

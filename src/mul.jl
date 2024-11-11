@@ -1,7 +1,7 @@
 """
 By default, elementwise multiplication will be performed.
 """
-function Quantics.automul(
+function automul(
     M1::BlockedMPS,
     M2::BlockedMPS;
     tag_row::String="",
@@ -31,13 +31,9 @@ function Quantics.automul(
     sites_M1_diag = [collect(x) for x in siteinds(M1)]
     sites_M2_diag = [collect(x) for x in siteinds(M2)]
 
-    M1 = Quantics.rearrange_siteinds(
-        M1, combinesites(sites_M1_diag, sites_row, sites_shared)
-    )
+    M1 = rearrange_siteinds(M1, combinesites(sites_M1_diag, sites_row, sites_shared))
 
-    M2 = Quantics.rearrange_siteinds(
-        M2, combinesites(sites_M2_diag, sites_shared, sites_col)
-    )
+    M2 = rearrange_siteinds(M2, combinesites(sites_M2_diag, sites_shared, sites_col))
 
     M = contract(M1, M2; alg=alg, kwargs...)
 
@@ -45,7 +41,7 @@ function Quantics.automul(
 
     ressites = Vector{eltype(siteinds(M1)[1])}[]
     for s in siteinds(M)
-        s_ = unique(noprime.(s))
+        s_ = unique(ITensors.noprime.(s))
         if length(s_) == 1
             push!(ressites, s_)
         else
@@ -58,7 +54,7 @@ function Quantics.automul(
             end
         end
     end
-    return truncate(Quantics.rearrange_siteinds(M, ressites); cutoff=cutoff, maxdim=maxdim)
+    return truncate(rearrange_siteinds(M, ressites); cutoff=cutoff, maxdim=maxdim)
 end
 
 function combinesites(
@@ -94,66 +90,3 @@ end
 function _findallsiteinds_by_tag(M::BlockedMPS; tag=tag)
     return Quantics.findallsiteinds_by_tag(only.(siteinds(M)); tag=tag)
 end
-
-#==
-function combinesites(M::ProjMPS, site1::Index, site2::Index)::ProjMPS
-    return project(Quantics.combinesites(Quantics.asMPO(MPS(M)), site1, site2), M.projector)
-end
-
-function combinesites(M::BlockedMPS, site1::Index, site2::Index)::BlockedMPS
-    return BlockedMPS([combinesites(projmps, site1, site2) for projmps in M])
-end
-
-function preprocess(mul::Quantics.MatrixMultiplier{T}, M1::BlockedMPS, M2::BlockedMPS) where {T}
-    for (site_row, site_shared, site_col) in
-        zip(mul.sites_row, mul.sites_shared, mul.sites_col)
-        M1, M2 = combinesites(M1, site_row, site_shared),
-        combinesites(M2, site_col, site_shared)
-    end
-    return M1, M2
-end
-
-function postprocess(mul::Quantics.MatrixMultiplier{T}, M::BlockedMPS)::BlockedMPS where {T}
-    return BlockedMPS([Quantics.postprocess(mul, x) for x in M])
-end
-
-function _postprocess(mul::Quantics.MatrixMultiplier{T}, M::ProjMPS)::ProjMPS where {T}
-    return Quantics.postprocess(mul, Quanitcs.asMPO(MPS(M)) )
-end
-
-function _preprocess1(mul::Quantics.ElementwiseMultiplier{T}, M1::ProjMPS) where {T}
-    return project(_preprocess1(mul, Quantics.asMPO(M1.data)), M1.projector)
-end
-
-function _preprocess2(mul::Quantics.ElementwiseMultiplier{T}, M2::ProjMPS) where {T}
-    return project(_preprocess2(mul, Quantics.asMPO(M2.data)), M2.projector)
-end
-
-function _preprocess1(mul::Quantics.ElementwiseMultiplier{T}, M1::MPO) where {T}
-    tensors1 = ITensors.data(M1)
-    for s in mul.sites
-        p = findfirst(hasind(s), tensors1)
-        tensors1[p] = Quantics._asdiagonal(tensors1[p], s)
-        replaceind!(tensors1[p], s' => s'')
-        replaceind!(tensors1[p], s => s')
-    end
-    return MPO(tensors1)
-end
-
-function _preprocess2(mul::Quantics.ElementwiseMultiplier{T}, M2::MPO) where {T}
-    tensors2 = ITensors.data(M2)
-    for s in mul.sites
-        p = findfirst(hasind(s), tensors2)
-        tensors2[p] = Quantics._asdiagonal(tensors2[p], s)
-    end
-    return MPO(tensors2)
-end
-
-function preprocess(mul::Quantics.ElementwiseMultiplier{T}, M1::BlockedMPS, M2::BlockedMPS) where {T}
-    return BlockedMPS([_preprocess1(mul, x) for x in M1]), BlockedMPS([_preprocess2(mul, x) for x in M2])
-end
-
-function postprocess(mul::Quantics.ElementwiseMultiplier{T}, M::BlockedMPS)::BlockedMPS where {T}
-    return BlockedMPS([Quantics.postprocess(mul, x) for x in M])
-end
-==#

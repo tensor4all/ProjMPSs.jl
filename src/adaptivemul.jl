@@ -9,15 +9,16 @@ struct LazyContraction
         shared_inds = Set{Index}()
         for (a_, b_) in zip(siteinds(a), siteinds(b))
             cinds = commoninds(a_, b_)
-            length(cinds) > 0 || error("The two ProjMPS must have common indices at every site.")
+            length(cinds) > 0 ||
+                error("The two ProjMPS must have common indices at every site.")
             shared_inds = shared_inds ∪ cinds
         end
         #@show  typeof(_projector_after_contract(a, b))
-        new(a, b, _projector_after_contract(a, b)[1])
+        return new(a, b, _projector_after_contract(a, b)[1])
     end
 end
 
-function lazycontraction(a::ProjMPS, b::ProjMPS)::Union{LazyContraction, Nothing}
+function lazycontraction(a::ProjMPS, b::ProjMPS)::Union{LazyContraction,Nothing}
     # If any of shared indices between a and b is projected at different levels, return nothing
     if a.projector & b.projector === nothing
         return nothing
@@ -47,13 +48,13 @@ This makes the algorithm much simpler
 function adaptivecontract(
     a::BlockedMPS,
     b::BlockedMPS,
-    pordering::AbstractVector{Index} = Index[];
-    alg = ITensors.Algorithm"fit"(),
-    cutoff = 1e-25,
-    maxdim = typemax(Int),
-    kwargs...
+    pordering::AbstractVector{Index}=Index[];
+    alg=ITensors.Algorithm"fit"(),
+    cutoff=1e-25,
+    maxdim=typemax(Int),
+    kwargs...,
 )
-    patches = Dict{Projector, Vector{Union{ProjMPS,LazyContraction}}}()
+    patches = Dict{Projector,Vector{Union{ProjMPS,LazyContraction}}}()
 
     for x in values(a), y in values(b) # FIXME: Naive loop over O(N^2) pairs
         xy = lazycontraction(x, y)
@@ -75,7 +76,7 @@ function adaptivecontract(
     for (p, muls) in patches
         prjmpss = [contract(m.a, m.b; alg, cutoff, maxdim, kwargs...) for m in muls]
         #patches[p] = +(prjmpss...; alg="fit", cutoff, maxdim)
-        push!(result_blocks,  +(prjmpss...; alg="fit", cutoff, maxdim))
+        push!(result_blocks, +(prjmpss...; alg="fit", cutoff, maxdim))
     end
 
     return BlockedMPS(result_blocks)
