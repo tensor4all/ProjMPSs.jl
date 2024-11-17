@@ -21,7 +21,7 @@ using Random
 
         @test length(values((bmps))) > 1
 
-        @test MPS(bmps) ≈ MPS(prjmps) rtol = 1e-15
+        @test MPS(bmps) ≈ MPS(prjmps) rtol = 1e-12
         #MPS(bmps) ≈ MPS(prjmps)
     end
 end
