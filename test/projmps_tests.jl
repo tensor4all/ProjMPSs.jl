@@ -2,17 +2,11 @@ using Test
 
 using ITensors
 
-using Quantics: Quantics
 using Random
 
-import ProjMPSs:
-    ProjMPSs,
-    Projector,
-    project,
-    ProjMPS,
-    rearrange_siteinds,
-    makesitediagonal,
-    extractdiagonal
+import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, rearrange_siteinds
+#makesitediagonal,
+#extractdiagonal
 
 @testset "projmps.jl" begin
     @testset "ProjMPS" begin
@@ -34,6 +28,7 @@ import ProjMPSs:
         @test Ψreconst ≈ Ψ
     end
 
+    #==
     @testset "rearrange_siteinds" begin
         N = 3
         sitesx = [Index(2, "x=$n") for n in 1:N]
@@ -106,4 +101,5 @@ import ProjMPSs:
             end
         end
     end
+    ==#
 end

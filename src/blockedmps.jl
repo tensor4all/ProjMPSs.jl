@@ -157,12 +157,12 @@ function truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
 end
 
 # Only for debug
-function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
+function ITensorMPS.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
     return reduce(
         (x, y) -> truncate(+(x, y; alg="directsum"); cutoff, maxdim), values(obj.data)
     ).data # direct sum
 end
 
-function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
+function ITensorMPS.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
     return MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
 end

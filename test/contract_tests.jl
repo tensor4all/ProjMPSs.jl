@@ -1,8 +1,8 @@
 using Test
 import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, projcontract
 import FastMPOContractions as FMPOC
-import Quantics: asMPO
 
+asMPO(M::AbstractMPS) = MPO(collect(M))
 @testset "contract.jl" begin
     @testset "contract (xk-y-z)" begin
         R = 3
