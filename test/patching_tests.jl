@@ -1,7 +1,6 @@
 using Test
 import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, adaptive_patching, BlockedMPS
 import FastMPOContractions as FMPOC
-import Quantics: asMPO
 using ITensors
 using Random
 

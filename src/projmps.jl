@@ -19,8 +19,8 @@ siteinds(obj::ProjMPS) = collect(ITensors.siteinds(MPO([x for x in obj.data])))
 _allsites(Ψ::AbstractMPS) = collect(Iterators.flatten(ITensors.siteinds(MPO(collect(Ψ)))))
 _allsites(Ψ::ProjMPS) = _allsites(Ψ.data)
 
-maxlinkdim(Ψ::ProjMPS) = ITensors.maxlinkdim(Ψ.data)
-maxbonddim(Ψ::ProjMPS) = ITensors.maxlinkdim(Ψ.data)
+maxlinkdim(Ψ::ProjMPS) = ITensorMPS.maxlinkdim(Ψ.data)
+maxbonddim(Ψ::ProjMPS) = ITensorMPS.maxlinkdim(Ψ.data)
 
 function _trim_projector(obj::AbstractMPS, projector)
     sites = Set(_allsites(obj))
@@ -38,7 +38,7 @@ function ProjMPS(Ψ::AbstractMPS)
 end
 
 # Conversion Functions
-ITensors.MPS(projΨ::ProjMPS) = projΨ.data
+ITensorMPS.MPS(projΨ::ProjMPS) = projΨ.data
 
 function project(tensor::ITensor, projector::Projector)
     slice = Union{Int,Colon}[
@@ -85,6 +85,7 @@ function _iscompatible(projector::Projector, Ψ::AbstractMPS)
     return all((_iscompatible(projector, x) for x in Ψ))
 end
 
+#==
 function _makesitediagonal(
     projmps::ProjMPS, sites::AbstractVector{Index{IndsT}}; baseplev=0
 ) where {IndsT}
@@ -174,6 +175,7 @@ function rearrange_siteinds(projmps::ProjMPS, sites)
     mps_rearranged = Quantics.rearrange_siteinds(MPS(projmps), sites)
     return project(ProjMPS(mps_rearranged), projmps.projector)
 end
+==#
 
 # Miscellaneous Functions
 function Base.show(io::IO, obj::ProjMPS)
@@ -264,7 +266,7 @@ function truncate(obj::ProjMPS; kwargs...)::ProjMPS
 end
 
 function _norm(M::AbstractMPS)
-    if ITensors.isortho(M)
+    if ITensorMPS.isortho(M)
         return ITensors.norm(M[orthocenter(M)])
     end
     norm2_M = ITensors.dot(M, M)
