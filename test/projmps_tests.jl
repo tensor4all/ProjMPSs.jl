@@ -4,14 +4,9 @@ using ITensors
 
 using Random
 
-import ProjMPSs:
-    ProjMPSs,
-    Projector,
-    project,
-    ProjMPS,
-    rearrange_siteinds
-    #makesitediagonal,
-    #extractdiagonal
+import ProjMPSs: ProjMPSs, Projector, project, ProjMPS, rearrange_siteinds
+#makesitediagonal,
+#extractdiagonal
 
 @testset "projmps.jl" begin
     @testset "ProjMPS" begin
