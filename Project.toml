@@ -22,7 +22,7 @@ FastMPOContractions = "0.2.5"
 ITensors = "0.6, 0.7"
 LocalCoverage = "0.8"
 OrderedCollections = "1.6.3"
-Quantics = "0.3.8"
+Quantics = "0.3.8, 0.4"
 julia = "1.6"
 
 [extras]
