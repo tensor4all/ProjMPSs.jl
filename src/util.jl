@@ -70,3 +70,39 @@ function _asdiagonal(t, site::Index{T}; baseplev=0)::ITensor where {T<:Number}
         tensor, links..., ITensors.prime(site, baseplev + 1), ITensors.prime(site, baseplev)
     )
 end
+
+
+function rearrange_siteinds(M::AbstractMPS, sites::Vector{Vector{Index{T}}})::MPS where {T}
+    sitesold = siteinds(MPO(collect(M)))
+
+    Set(Iterators.flatten(sites)) == Set(Iterators.flatten(sitesold)) ||
+        error("siteinds do not match $(sites) != $(sitesold)")
+
+    t = ITensor(1)
+    tensors = Vector{ITensor}(undef, length(sites))
+    tensors_old = collect(M)
+    for (i, site) in enumerate(sites)
+        for ind in site
+            if ind ∈ inds(t)
+                continue
+            end
+            contract_until = findfirst(x -> ind ∈ Set(collect(x)), inds.(tensors_old))
+            contract_until !== nothing || error("ind $ind not found")
+            for j in 1:contract_until
+                t *= tensors_old[j]
+            end
+            for _ in 1:contract_until
+                popfirst!(tensors_old)
+            end
+        end
+
+        linds = if i > 1
+            vcat(only(commoninds(t, tensors[i - 1])), sites[i])
+        else
+            sites[i]
+        end
+        tensors[i], t, _ = qr(t, linds)
+    end
+    tensors[end] *= t
+    MPS(tensors)
+end
