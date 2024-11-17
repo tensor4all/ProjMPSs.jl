@@ -16,6 +16,7 @@ function _add_patching(
     end
 
     # First perform addition upto given maxdim
+    # TODO: Early termination if the bond dimension reaches maxdim
     sum_approx = _add(prjmpss...; alg, cutoff, maxdim)
 
     # If the bond dimension is less than maxdim, return the result
@@ -53,4 +54,69 @@ function _next_projindex(prj::Projector, patchorder)::Union{Nothing,Index}
     else
         return patchorder[idx]
     end
+end
+
+"""
+Add multiple BlockedMPS objects.
+"""
+function add_patching(
+    bmpss::AbstractVector{BlockedMPS};
+    cutoff=0.0,
+    maxdim=typemax(Int),
+    alg="fit",
+    patchorder=Index[],
+)::BlockedMPS
+    result = _add_patching(union(values(x) for x in bmpss); cutoff, maxdim, alg, patchorder)
+    return BlockedMPS(result)
+end
+
+"""
+Adaptive patching
+
+Do patching recursively to reduce the bond dimension.
+If the bond dimension of a ProjMPS exceeds `maxdim`, perform patching.
+"""
+function adaptive_patching(
+    prjmps::ProjMPS, patchorder; cutoff=0.0, maxdim=typemax(Int)
+)::Vector{ProjMPS}
+    if maxbonddim(prjmps) <= maxdim
+        return [prjmps]
+    end
+
+    # If the bond dimension exceeds maxdim, perform patching
+    refined_prjmpss = ProjMPS[]
+    nextprjidx = _next_projindex(prjmps.projector, patchorder)
+    if nextprjidx === nothing
+        return [prjmps]
+    end
+
+    for prjval in 1:ITensors.dim(nextprjidx)
+        prj_ = prjmps.projector & Projector(nextprjidx => prjval)
+        prjmps_ = truncate(project(prjmps, prj_); cutoff, maxdim)
+        if maxbonddim(prjmps_) <= maxdim
+            push!(refined_prjmpss, prjmps_)
+        else
+            append!(refined_prjmpss, adaptive_patching(prjmps_, patchorder; cutoff, maxdim))
+        end
+    end
+    return refined_prjmpss
+end
+
+"""
+Adaptive patching
+
+Do patching recursively to reduce the bond dimension.
+If the bond dimension of a ProjMPS exceeds `maxdim`, perform patching.
+"""
+function adaptive_patching(
+    prjmpss::BlockedMPS, patchorder; cutoff=0.0, maxdim=typemax(Int)
+)::BlockedMPS
+    return BlockedMPS(
+        collect(
+            Iterators.flatten((
+                apdaptive_patching(prjmps; cutoff, maxdim, patchorder) for
+                prjmps in values(prjmpss)
+            )),
+        ),
+    )
 end
