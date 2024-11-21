@@ -2,7 +2,6 @@ using Test
 
 using ITensors
 
-using Quantics: Quantics
 import ProjMPSs: Projector, project, ProjMPS, BlockedMPS
 
 @testset "blockedmps.jl" begin

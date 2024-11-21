@@ -68,13 +68,6 @@ function Base.values(obj::BlockedMPS)
     return values(obj.data)
 end
 
-"""
-Extract diagonal of the BlockedMPS for `s`, `s'`, ... for a given site index `s`,
-where `s` must have a prime level of 0.
-"""
-function extractdiagonal(obj::BlockedMPS, site)
-    return BlockedMPS([extractdiagonal(prjmps, site) for prjmps in values(obj)])
-end
 
 """
 Rearrange the site indices of the BlockedMPS according to the given order.
@@ -84,30 +77,15 @@ function rearrange_siteinds(obj::BlockedMPS, sites)
     return BlockedMPS([rearrange_siteinds(prjmps, sites) for prjmps in values(obj)])
 end
 
-function ITensors.prime(Ψ::BlockedMPS, args...; kwargs...)
+function prime(Ψ::BlockedMPS, args...; kwargs...)
     return BlockedMPS([prime(prjmps, args...; kwargs...) for prjmps in values(Ψ.data)])
 end
 
 """
 Return the norm of the BlockedMPS.
 """
-function ITensors.norm(M::BlockedMPS)
-    return sqrt(reduce(+, (x^2 for x in ITensors.norm.(values(M)))))
-end
-
-"""
-Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
-"""
-function makesitediagonal(obj::BlockedMPS, site)
-    return BlockedMPS([
-        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
-    ])
-end
-
-function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
-    return BlockedMPS([
-        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
-    ])
+function LinearAlgebra.norm(M::BlockedMPS)
+    return sqrt(reduce(+, (x^2 for x in LinearAlgebra.norm.(values(M)))))
 end
 
 """
@@ -157,12 +135,12 @@ function truncate(obj::BlockedMPS; kwargs...)::BlockedMPS
 end
 
 # Only for debug
-function ITensors.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
+function ITensorMPS.MPS(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPS
     return reduce(
         (x, y) -> truncate(+(x, y; alg="directsum"); cutoff, maxdim), values(obj.data)
     ).data # direct sum
 end
 
-function ITensors.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
+function ITensorMPS.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
     return MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
 end
