@@ -71,7 +71,6 @@ function _asdiagonal(t, site::Index{T}; baseplev=0)::ITensor where {T<:Number}
     )
 end
 
-
 function rearrange_siteinds(M::AbstractMPS, sites::Vector{Vector{Index{T}}})::MPS where {T}
     sitesold = siteinds(MPO(collect(M)))
 
@@ -104,5 +103,16 @@ function rearrange_siteinds(M::AbstractMPS, sites::Vector{Vector{Index{T}}})::MP
         tensors[i], t, _ = qr(t, linds)
     end
     tensors[end] *= t
-    MPS(tensors)
+    return MPS(tensors)
+end
+
+function _extract_diagonal(t, site::Index{T}, site2::Index{T}) where {T<:Number}
+    dim(site) == dim(site2) || error("Dimension mismatch")
+    restinds = uniqueinds(inds(t), site, site2)
+    newdata = zeros(eltype(t), dim.(restinds)..., dim(site))
+    olddata = Array(t, restinds..., site, site2)
+    for i in 1:dim(site)
+        newdata[.., i] = olddata[.., i, i]
+    end
+    return ITensor(newdata, restinds..., site)
 end

@@ -11,3 +11,5 @@ include("projmps_tests.jl")
 include("blockedmps_tests.jl")
 include("contract_tests.jl")
 include("patching_tests.jl")
+
+include("automul_tests.jl")
