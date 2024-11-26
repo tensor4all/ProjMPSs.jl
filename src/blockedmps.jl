@@ -68,7 +68,6 @@ function Base.values(obj::BlockedMPS)
     return values(obj.data)
 end
 
-
 """
 Rearrange the site indices of the BlockedMPS according to the given order.
 If nessecary, tensors are fused or split to match the new order.
@@ -143,4 +142,27 @@ end
 
 function ITensorMPS.MPO(obj::BlockedMPS; cutoff=1e-25, maxdim=typemax(Int))::MPO
     return MPO(collect(MPS(obj; cutoff=cutoff, maxdim=maxdim, kwargs...)))
+end
+
+"""
+Make the BlockedMPS diagonal for a given site index `s` by introducing a dummy index `s'`.
+"""
+function makesitediagonal(obj::BlockedMPS, site)
+    return BlockedMPS([
+        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
+    ])
+end
+
+function _makesitediagonal(obj::BlockedMPS, site; baseplev=0)
+    return BlockedMPS([
+        _makesitediagonal(prjmps, site; baseplev=baseplev) for prjmps in values(obj)
+    ])
+end
+
+"""
+Extract diagonal of the BlockedMPS for `s`, `s'`, ... for a given site index `s`,
+where `s` must have a prime level of 0.
+"""
+function extractdiagonal(obj::BlockedMPS, site)
+    return BlockedMPS([extractdiagonal(prjmps, site) for prjmps in values(obj)])
 end
