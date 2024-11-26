@@ -214,10 +214,10 @@ function makesitediagonal(projmps::ProjMPS, sites::AbstractVector{Index})
 end
 
 function makesitediagonal(projmps::ProjMPS, tag::String)
-    mps_diagonal = Quantics.makesitediagonal(MPS(projmps), tag)
+    mps_diagonal = makesitediagonal(MPS(projmps), tag)
     projmps_diagonal = ProjMPS(mps_diagonal)
 
-    target_sites = Quantics.findallsiteinds_by_tag(
+    target_sites = findallsiteinds_by_tag(
         unique(ITensors.noprime.(Iterators.flatten(siteinds(projmps)))); tag=tag
     )
 
@@ -264,12 +264,9 @@ function extractdiagonal(
     return ProjMPS(MPS(tensors), projector)
 end
 
-function extractdiagonal(projmps::ProjMPS, site::Index{IndsT}) where {IndsT}
-    return Quantics.extractdiagonal(projmps, [site])
-end
 
 function extractdiagonal(projmps::ProjMPS, tag::String)::ProjMPS
-    targetsites = Quantics.findallsiteinds_by_tag(
+    targetsites = findallsiteinds_by_tag(
         unique(ITensors.noprime.(ProjMPSs._allsites(projmps))); tag=tag
     )
     return extractdiagonal(projmps, targetsites)

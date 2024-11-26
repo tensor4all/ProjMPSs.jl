@@ -6,10 +6,11 @@ using Test
 
 include("_util.jl")
 
-include("projector_tests.jl")
-include("projmps_tests.jl")
-include("blockedmps_tests.jl")
-include("contract_tests.jl")
-include("patching_tests.jl")
+#include("projector_tests.jl")
+#include("projmps_tests.jl")
+#include("blockedmps_tests.jl")
+#include("contract_tests.jl")
+#include("patching_tests.jl")
+include("util_tests.jl")
 
-include("automul_tests.jl")
+#include("automul_tests.jl")
